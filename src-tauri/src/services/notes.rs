@@ -14,6 +14,8 @@ pub struct AppConfig {
     pub close_to_tray: bool,
     pub autostart: bool,
     pub default_view_mode: String,
+    #[serde(default = "default_note_auto_save")]
+    pub note_auto_save: bool,
     #[serde(default = "default_note_surface_auto_save")]
     pub note_surface_auto_save: bool,
     #[serde(default = "default_tile_color")]
@@ -303,6 +305,7 @@ impl NoteStore {
             close_to_tray: true,
             autostart: false,
             default_view_mode: "split".into(),
+            note_auto_save: true,
             note_surface_auto_save: true,
             tile_color: default_tile_color(),
         }
@@ -525,6 +528,10 @@ fn imported_markdown_title(path: &Path, content: &str) -> String {
         .to_string()
 }
 
+fn default_note_auto_save() -> bool {
+    true
+}
+
 fn default_note_surface_auto_save() -> bool {
     true
 }
@@ -635,6 +642,7 @@ mod tests {
 
         let default_config = store.load_config().expect("load default config");
         assert_eq!(default_config.global_shortcut, "Ctrl+Space");
+        assert!(default_config.note_auto_save);
         assert!(default_config.note_surface_auto_save);
         assert_eq!(default_config.tile_color, "#f6f3ec");
         assert!(default_config.notes_dir.ends_with(r"\notes"));
@@ -646,6 +654,7 @@ mod tests {
             close_to_tray: false,
             autostart: true,
             default_view_mode: "preview".into(),
+            note_auto_save: false,
             note_surface_auto_save: false,
             tile_color: "#efe8dc".into(),
         };
@@ -679,6 +688,7 @@ mod tests {
 
         let loaded = store.load_config().expect("load legacy config");
 
+        assert!(loaded.note_auto_save);
         assert!(loaded.note_surface_auto_save);
         assert_eq!(loaded.tile_color, "#f6f3ec");
     }

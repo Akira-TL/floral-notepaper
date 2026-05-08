@@ -6,6 +6,7 @@ export interface AppConfig {
   closeToTray: boolean;
   autostart: boolean;
   defaultViewMode: string;
+  noteAutoSave: boolean;
   noteSurfaceAutoSave: boolean;
   tileColor: string;
 }

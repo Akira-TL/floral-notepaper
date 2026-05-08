@@ -34,6 +34,7 @@ describe("settings api", () => {
       closeToTray: true,
       autostart: false,
       defaultViewMode: "split",
+      noteAutoSave: true,
       noteSurfaceAutoSave: true,
       tileColor: "#f6f3ec",
     };
@@ -51,6 +52,7 @@ describe("settings api", () => {
       closeToTray: false,
       autostart: true,
       defaultViewMode: "preview",
+      noteAutoSave: false,
       noteSurfaceAutoSave: false,
       tileColor: "#efe8dc",
     };

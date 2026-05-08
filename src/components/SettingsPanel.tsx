@@ -114,7 +114,12 @@ export function SettingsPanel({
             onChange={(checked) => setConfigValue("autostart", checked)}
           />
           <ToggleRow
-            label="便签自动保存"
+            label="自动保存笔记"
+            checked={config.noteAutoSave}
+            onChange={(checked) => setConfigValue("noteAutoSave", checked)}
+          />
+          <ToggleRow
+            label="小窗笔记自动保存"
             checked={config.noteSurfaceAutoSave}
             onChange={(checked) =>
               setConfigValue("noteSurfaceAutoSave", checked)

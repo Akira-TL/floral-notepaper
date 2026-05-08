@@ -13,6 +13,7 @@ describe("MainWindow settings", () => {
           closeToTray: true,
           autostart: false,
           defaultViewMode: "split",
+          noteAutoSave: true,
           noteSurfaceAutoSave: true,
           tileColor: "#f6f3ec",
         }}

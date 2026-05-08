@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { exportMarkdownNote, importMarkdownNote } from "../features/importExport/api";
 import { MarkdownPreview } from "../features/markdown/MarkdownPreview";
@@ -89,6 +89,9 @@ export function MainWindow({
     initialConfig?.notesDir ?? null,
   );
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsToast, setSettingsToast] = useState<string | null>(null);
+  const [noteTransitionKey, setNoteTransitionKey] = useState(0);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   const selectedNote = useMemo(
     () => notes.find((note) => note.id === selectedId) ?? null,
@@ -111,6 +114,7 @@ export function MainWindow({
     setContent(note.content);
     setSaveState("saved");
     setErrorMessage(null);
+    setNoteTransitionKey((k) => k + 1);
   }, []);
 
   const replaceNoteMetadata = useCallback((note: Note) => {
@@ -228,14 +232,27 @@ export function MainWindow({
   }, [content, replaceNoteMetadata, selectedId, title]);
 
   useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+        event.preventDefault();
+        void saveCurrentNote();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [saveCurrentNote]);
+
+  useEffect(() => {
     if (!selectedId || saveState !== "dirty") return undefined;
+    if (!settingsConfig?.noteAutoSave) return undefined;
 
     const timer = window.setTimeout(() => {
       void saveCurrentNote();
     }, 900);
 
     return () => window.clearTimeout(timer);
-  }, [saveCurrentNote, saveState, selectedId]);
+  }, [saveCurrentNote, saveState, selectedId, settingsConfig?.noteAutoSave]);
 
   const handleNewNote = async () => {
     setErrorMessage(null);
@@ -249,6 +266,10 @@ export function MainWindow({
   };
 
   const handleOpenSettings = async () => {
+    if (settingsOpen) {
+      setSettingsOpen(false);
+      return;
+    }
     setSettingsOpen(true);
     if (settingsConfig) return;
 
@@ -307,6 +328,12 @@ export function MainWindow({
           clearCurrentNote();
         }
       }
+
+      setSettingsToast("设置已保存");
+      window.setTimeout(() => {
+        setSettingsToast(null);
+        setSettingsOpen(false);
+      }, 1200);
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -581,7 +608,7 @@ export function MainWindow({
 
         <div className="flex flex-1 min-h-0">
           <div
-            className={`border-r border-paper-deep/30 bg-paper/40 flex flex-col shrink-0 transition-all duration-300 ${
+            className={`border-r border-paper-deep/30 bg-paper/40 flex flex-col shrink-0 transition-all duration-[600ms] ${
               sidebarCollapsed ? "w-0 overflow-hidden" : "w-[280px]"
             }`}
           >
@@ -689,7 +716,7 @@ export function MainWindow({
                       onContextMenu={(event) => handleOpenNoteMenu(event, note.id)}
                       onMouseEnter={() => setHoveredId(note.id)}
                       onMouseLeave={() => setHoveredId(null)}
-                      className={`w-full text-left rounded-xl px-3 py-2.5 transition-all duration-200 cursor-pointer group relative ${
+                      className={`w-full text-left rounded-xl px-3 py-2.5 transition-all duration-[600ms] cursor-pointer group relative ${
                         isSelected
                           ? "bg-bamboo-mist/70"
                           : isHovered
@@ -697,9 +724,9 @@ export function MainWindow({
                             : "bg-transparent"
                       }`}
                     >
-                      {isSelected && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-bamboo/60" />
-                      )}
+                      <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-bamboo/60 transition-all duration-[600ms] ${
+                        isSelected ? "h-5 opacity-100" : "h-0 opacity-0"
+                      }`} />
 
                       <div className="flex items-baseline justify-between mb-0.5">
                         <span
@@ -834,13 +861,19 @@ export function MainWindow({
               </div>
             </div>
 
-            <div className="px-6 pt-4 pb-2 shrink-0 border-b border-paper-deep/15">
+            <div key={noteTransitionKey} className="animate-note-enter px-6 pt-4 pb-2 shrink-0 border-b border-paper-deep/15">
               <input
                 type="text"
                 value={title}
                 onChange={(event) => {
                   setTitle(event.target.value);
                   markDirty();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    contentRef.current?.focus();
+                  }
                 }}
                 placeholder="无标题笔记"
                 disabled={!selectedId}
@@ -869,7 +902,7 @@ export function MainWindow({
               </div>
             </div>
 
-            <div className="flex-1 flex min-h-0">
+            <div key={viewMode} className="flex-1 flex min-h-0 animate-view-fade">
               {!selectedId && !isLoading ? (
                 <div className="flex-1 flex items-center justify-center text-[13px] text-ink-ghost">
                   选择或新建一篇笔记
@@ -907,6 +940,7 @@ export function MainWindow({
 
                       <div className="flex-1 overflow-y-auto px-5 pb-4">
                         <textarea
+                          ref={contentRef}
                           value={content}
                           onChange={(event) => {
                             setContent(event.target.value);
@@ -950,7 +984,7 @@ export function MainWindow({
             <div className="flex items-center justify-between px-4 h-7 border-t border-paper-deep/20 bg-paper/30 shrink-0">
               <div className="flex items-center gap-3">
                 <span className="text-[10px] text-ink-ghost font-mono tabular-nums">
-                  Ln {content.split("\n").length}, Col 0
+                  Ln {content.split("\n").length}
                 </span>
                 <span className="text-[10px] text-ink-ghost/40">|</span>
                 <span className="text-[10px] text-ink-ghost font-mono">
@@ -968,15 +1002,28 @@ export function MainWindow({
               </div>
             </div>
           </div>
-          {settingsOpen && settingsConfig && (
-            <SettingsPanel
-              config={settingsConfig}
-              isSaving={settingsSaving}
-              onChange={setSettingsConfig}
-              onChooseNotesDir={() => void handleChooseNotesDir()}
-              onClose={() => setSettingsOpen(false)}
-              onSave={() => void handleSaveSettings()}
-            />
+          {settingsConfig && (
+            <div className={`relative shrink-0 transition-all duration-[600ms] overflow-hidden ${
+              settingsOpen ? "w-[360px]" : "w-0"
+            }`}>
+              <div className="w-[360px]">
+                <SettingsPanel
+                  config={settingsConfig}
+                  isSaving={settingsSaving}
+                  onChange={setSettingsConfig}
+                  onChooseNotesDir={() => void handleChooseNotesDir()}
+                  onClose={() => setSettingsOpen(false)}
+                  onSave={() => void handleSaveSettings()}
+                />
+              </div>
+              {settingsToast && (
+                <div className="absolute inset-0 flex items-center justify-center bg-cloud/60 backdrop-blur-[2px] z-10 animate-fade-in">
+                  <div className="px-5 py-2.5 rounded-xl bg-bamboo text-cloud text-[13px] font-body shadow-lg">
+                    {settingsToast}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -1052,6 +1052,7 @@ mod tests {
             close_to_tray: true,
             autostart: false,
             default_view_mode: "split".into(),
+            note_auto_save: true,
             note_surface_auto_save: true,
             tile_color: "#f6f3ec".into(),
         };
@@ -1061,6 +1062,7 @@ mod tests {
             close_to_tray: false,
             autostart: true,
             default_view_mode: "preview".into(),
+            note_auto_save: false,
             note_surface_auto_save: false,
             tile_color: "#efe8dc".into(),
         };
