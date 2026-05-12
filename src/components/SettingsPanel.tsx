@@ -175,7 +175,7 @@ export function SettingsPanel({
               onChange={(event) =>
                 setConfigValue("fontSize", Number(event.target.value))
               }
-              className="flex-1 h-1 accent-bamboo cursor-pointer"
+              className="flex-1 h-1 accent-bamboo cursor-pointer appearance-none bg-transparent [&::-webkit-slider-runnable-track]:h-[3px] [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-paper-deep/50 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-bamboo [&::-webkit-slider-thumb]:-mt-[4.5px] [&::-webkit-slider-thumb]:shadow-[0_1px_3px_rgba(0,0,0,0.15)]"
             />
             <span className="text-[12px] font-mono text-ink-soft tabular-nums w-8 text-right">
               {config.fontSize ?? 14}px
