@@ -441,7 +441,7 @@ export function MainWindow({
     try {
       const notesDir = await chooseNotesDirectory();
       if (!notesDir) return;
-      setSettingsConfig({ ...settingsConfig, notesDir });
+      handleSettingsChange({ ...settingsConfig, notesDir });
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     }
