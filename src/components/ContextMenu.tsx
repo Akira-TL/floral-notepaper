@@ -29,6 +29,11 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
       }
 
       event.preventDefault();
+
+      if (tileTarget && event.ctrlKey) {
+        requestSurfaceAction("close");
+        return;
+      }
       const selection = window.getSelection()?.toString() || "";
 
       let x = event.clientX;

@@ -5,6 +5,7 @@ use services::notes::{default_store, AppConfig, AppError, Note, NoteMetadata, Sa
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager};
 
+
 #[tauri::command]
 fn app_name() -> &'static str {
     "花笺"
@@ -42,8 +43,8 @@ fn notes_delete(app: AppHandle, id: String) -> Result<(), AppError> {
 }
 
 #[tauri::command]
-fn notes_import_markdown(app: AppHandle, path: String) -> Result<Note, AppError> {
-    let note = default_store()?.import_markdown_file(&PathBuf::from(path))?;
+fn notes_import_markdown(app: AppHandle, path: String, category: Option<String>) -> Result<Note, AppError> {
+    let note = default_store()?.import_markdown_file(&PathBuf::from(path), &category.unwrap_or_default())?;
     let _ = app.emit("notes-changed", ());
     Ok(note)
 }
@@ -73,6 +74,39 @@ fn save_external_file(path: String, content: String) -> Result<(), AppError> {
         code: "io".into(),
         message: e.to_string(),
     })
+}
+
+#[tauri::command]
+fn categories_list() -> Result<Vec<String>, AppError> {
+    default_store()?.list_categories()
+}
+
+#[tauri::command]
+fn categories_create(app: AppHandle, name: String) -> Result<(), AppError> {
+    default_store()?.create_category(&name)?;
+    let _ = app.emit("notes-changed", ());
+    Ok(())
+}
+
+#[tauri::command]
+fn categories_rename(app: AppHandle, old_name: String, new_name: String) -> Result<(), AppError> {
+    default_store()?.rename_category(&old_name, &new_name)?;
+    let _ = app.emit("notes-changed", ());
+    Ok(())
+}
+
+#[tauri::command]
+fn categories_delete(app: AppHandle, name: String) -> Result<(), AppError> {
+    default_store()?.delete_category(&name)?;
+    let _ = app.emit("notes-changed", ());
+    Ok(())
+}
+
+#[tauri::command]
+fn notes_move_category(app: AppHandle, id: String, category: String) -> Result<NoteMetadata, AppError> {
+    let result = default_store()?.move_note_to_category(&id, &category)?;
+    let _ = app.emit("notes-changed", ());
+    Ok(result)
 }
 
 #[tauri::command]
@@ -148,8 +182,13 @@ pub fn run() {
             notes_delete,
             notes_import_markdown,
             notes_export_markdown,
+            notes_move_category,
             read_external_file,
             save_external_file,
+            categories_list,
+            categories_create,
+            categories_rename,
+            categories_delete,
             config_get,
             config_save,
             open_notepad_window,

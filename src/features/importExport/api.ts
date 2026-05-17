@@ -9,7 +9,7 @@ interface ExportableNote {
   title: string;
 }
 
-export async function importMarkdownNote(): Promise<Note | null> {
+export async function importMarkdownNote(category = ""): Promise<Note | null> {
   const path = await open({
     multiple: false,
     directory: false,
@@ -20,7 +20,7 @@ export async function importMarkdownNote(): Promise<Note | null> {
     return null;
   }
 
-  return invoke("notes_import_markdown", { path });
+  return invoke("notes_import_markdown", { path, category });
 }
 
 export async function exportMarkdownNote(note: ExportableNote): Promise<boolean> {

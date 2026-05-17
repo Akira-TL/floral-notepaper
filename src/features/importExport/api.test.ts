@@ -44,6 +44,7 @@ describe("importExport api", () => {
     });
     expect(invoke).toHaveBeenCalledWith("notes_import_markdown", {
       path: "D:\\notes\\外部笔记.md",
+      category: "",
     });
     expect(note?.id).toBe("note-1");
   });

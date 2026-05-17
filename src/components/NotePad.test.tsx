@@ -21,6 +21,9 @@ describe("NotePad surface modes", () => {
     expect(markup).toContain("pb-2");
     expect(markup).toContain("<input");
     expect(markup).toContain("<textarea");
+    expect(markup).toContain("cursor-default");
+    expect(markup).not.toContain("cursor-grab");
+    expect(markup).not.toContain("cursor-grabbing");
   });
 
   test("can render the same surface as the confirmed read-only tile design", () => {
@@ -43,6 +46,9 @@ describe("NotePad surface modes", () => {
     expect(markup).toContain('data-resize-direction="SouthEast"');
     expect(markup).toContain("w-8 h-8");
     expect(markup).not.toContain("<button");
+    expect(markup).toContain("cursor-default");
+    expect(markup).not.toContain("cursor-grab");
+    expect(markup).not.toContain("cursor-grabbing");
     expect(markup).not.toContain("bg-bamboo-mist/70 p-2");
     expect(markup).not.toContain("<input");
     expect(markup).not.toContain("<textarea");

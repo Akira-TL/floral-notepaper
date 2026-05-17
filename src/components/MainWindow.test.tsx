@@ -27,6 +27,14 @@ describe("MainWindow settings", () => {
     expect(markup).toContain("应用设置");
     expect(markup).toContain("D:\\Notes\\花笺");
   });
+
+  test("keeps draggable window chrome on the default arrow cursor", () => {
+    const markup = renderToStaticMarkup(<MainWindow />);
+
+    expect(markup).toContain("cursor-default");
+    expect(markup).not.toContain("cursor-grab");
+    expect(markup).not.toContain("cursor-grabbing");
+  });
 });
 
 describe("MainWindow editor undo", () => {

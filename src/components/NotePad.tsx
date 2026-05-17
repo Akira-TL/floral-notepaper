@@ -274,7 +274,8 @@ export function NotePad({
   }, [refreshNotes]);
 
   const saveNote = useCallback(async () => {
-    const request = { title, content };
+    const existingCategory = notes.find((n) => n.id === editingNoteId)?.category ?? "";
+    const request = { title, content, category: existingCategory };
     const note = editingNoteId
       ? await updateNote(editingNoteId, request)
       : await createNote(request);
@@ -484,7 +485,7 @@ export function NotePad({
           color={tileColor}
           fontSize={surfaceFontSize}
           width="100%"
-          className="h-full cursor-grab active:cursor-grabbing"
+          className="h-full cursor-default"
           data-surface-mode={surfaceMode}
           data-context-menu="tile"
           data-note-id={tileNoteId}
@@ -496,7 +497,7 @@ export function NotePad({
         <div className={padSurfaceClassName} data-surface-mode={surfaceMode}>
           <>
             <div
-              className="flex items-center justify-between px-4 pt-3 pb-0 cursor-grab active:cursor-grabbing"
+              className="flex items-center justify-between px-4 pt-3 pb-0 cursor-default"
               onMouseDown={handleDrag}
             >
               <div className="flex items-center gap-0.5">

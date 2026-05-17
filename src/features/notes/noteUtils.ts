@@ -27,11 +27,58 @@ export function metadataFromNote(note: Note): NoteMetadata {
     id: note.id,
     title: note.title,
     fileName: note.fileName,
+    category: note.category,
     createdAt: note.createdAt,
     updatedAt: note.updatedAt,
     wordCount: note.wordCount,
     preview: buildPreview(note.content),
   };
+}
+
+export interface CategoryGroup {
+  category: string;
+  notes: NoteMetadata[];
+  latestUpdatedAt: string;
+}
+
+export function groupNotesByCategory(
+  notes: NoteMetadata[],
+  allCategories: string[] = [],
+): CategoryGroup[] {
+  const groups = new Map<string, NoteMetadata[]>();
+
+  for (const cat of allCategories) {
+    groups.set(cat, []);
+  }
+
+  for (const note of notes) {
+    const key = note.category || "";
+    const list = groups.get(key);
+    if (list) {
+      list.push(note);
+    } else {
+      groups.set(key, [note]);
+    }
+  }
+
+  const result: CategoryGroup[] = [];
+  for (const [category, categoryNotes] of groups) {
+    categoryNotes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    result.push({
+      category,
+      notes: categoryNotes,
+      latestUpdatedAt: categoryNotes[0]?.updatedAt ?? "",
+    });
+  }
+
+  result.sort((a, b) => {
+    const aEmpty = a.notes.length === 0;
+    const bEmpty = b.notes.length === 0;
+    if (aEmpty && !bEmpty) return -1;
+    if (!aEmpty && bEmpty) return 1;
+    return b.latestUpdatedAt.localeCompare(a.latestUpdatedAt);
+  });
+  return result;
 }
 
 export function filterNotes(notes: NoteMetadata[], query: string): NoteMetadata[] {

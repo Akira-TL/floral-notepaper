@@ -404,6 +404,7 @@ pub fn show_main_window(app: &AppHandle) -> Result<(), AppError> {
         false,
         false,
         true,
+        false,
         None,
     )?;
     Ok(())
@@ -439,6 +440,7 @@ fn open_notepad_window_now(
         false,
         true,
         false,
+        true,
         bounds,
     )
 }
@@ -531,6 +533,7 @@ fn prewarm_notepad(app: &AppHandle) -> Result<(), AppError> {
     .transparent(visual_options.transparent)
     .always_on_top(true)
     .shadow(false)
+    .skip_taskbar(true)
     .visible(false)
     .focused(false)
     .build()?;
@@ -571,6 +574,7 @@ fn open_tile_window_now(
         false,
         true,
         false,
+        true,
         bounds,
     )
 }
@@ -587,6 +591,7 @@ fn open_or_focus_window(
     decorations: bool,
     always_on_top: bool,
     shadow: bool,
+    skip_taskbar: bool,
     bounds: Option<WindowBounds>,
 ) -> Result<String, AppError> {
     let visual_options = dynamic_window_visual_options(label);
@@ -609,6 +614,7 @@ fn open_or_focus_window(
         .transparent(visual_options.transparent)
         .always_on_top(always_on_top)
         .shadow(shadow)
+        .skip_taskbar(skip_taskbar)
         .visible(false);
 
     if let Some(bounds) = bounds {

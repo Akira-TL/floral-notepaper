@@ -2,6 +2,7 @@ export interface NoteMetadata {
   id: string;
   title: string;
   fileName: string;
+  category: string;
   createdAt: string;
   updatedAt: string;
   wordCount: number;
@@ -15,6 +16,7 @@ export interface Note extends Omit<NoteMetadata, "preview"> {
 export interface SaveNoteRequest {
   title: string;
   content: string;
+  category: string;
 }
 
 export interface ExternalFile {

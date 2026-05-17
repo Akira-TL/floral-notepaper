@@ -35,6 +35,8 @@ pub struct AppConfig {
 pub struct SaveNoteRequest {
     pub title: String,
     pub content: String,
+    #[serde(default)]
+    pub category: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -43,6 +45,8 @@ pub struct NoteMetadata {
     pub id: String,
     pub title: String,
     pub file_name: String,
+    #[serde(default)]
+    pub category: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub word_count: usize,
@@ -55,6 +59,8 @@ pub struct Note {
     pub id: String,
     pub title: String,
     pub file_name: String,
+    #[serde(default)]
+    pub category: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub word_count: usize,
@@ -177,7 +183,7 @@ impl NoteStore {
     pub fn list_notes(&self) -> Result<Vec<NoteMetadata>, AppError> {
         self.ensure_storage()?;
         let mut metadata = self.load_metadata()?.notes;
-        metadata.retain(|note| self.note_path(&note.file_name).exists());
+        metadata.retain(|note| self.note_path_in_category(&note.file_name, &note.category).exists());
         metadata.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
         Ok(metadata)
     }
@@ -185,11 +191,12 @@ impl NoteStore {
     pub fn read_note(&self, id: &str) -> Result<Note, AppError> {
         self.ensure_storage()?;
         let metadata = self.find_metadata(id)?;
-        let content = fs::read_to_string(self.note_path(&metadata.file_name))?;
+        let content = fs::read_to_string(self.note_path_in_category(&metadata.file_name, &metadata.category))?;
         Ok(Note {
             id: metadata.id,
             title: metadata.title,
             file_name: metadata.file_name,
+            category: metadata.category,
             created_at: metadata.created_at,
             updated_at: metadata.updated_at,
             word_count: metadata.word_count,
@@ -203,17 +210,23 @@ impl NoteStore {
         let now = Utc::now();
         let file_name = self.file_name_for(&id, &request.title);
         let word_count = count_words(&request.content);
+        let category = request.category.clone();
+        let note_path = self.note_path_in_category(&file_name, &category);
+        if let Some(parent) = note_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
         let metadata = NoteMetadata {
             id: id.clone(),
             title: request.title,
             file_name: file_name.clone(),
+            category: category.clone(),
             created_at: now,
             updated_at: now,
             word_count,
             preview: preview(&request.content),
         };
 
-        fs::write(self.note_path(&file_name), &request.content)?;
+        fs::write(&note_path, &request.content)?;
         let mut metadata_file = self.load_metadata()?;
         metadata_file.notes.push(metadata.clone());
         self.save_metadata(&metadata_file)?;
@@ -222,6 +235,7 @@ impl NoteStore {
             id,
             title: metadata.title,
             file_name,
+            category,
             created_at: now,
             updated_at: now,
             word_count,
@@ -239,20 +253,28 @@ impl NoteStore {
             .ok_or_else(|| AppError::not_found(format!("Note {id} was not found")))?;
 
         let old_file_name = note.file_name.clone();
+        let old_category = note.category.clone();
         let new_file_name = self.file_name_for(id, &request.title);
+        let new_category = request.category.clone();
         let now = Utc::now();
         let word_count = count_words(&request.content);
 
-        fs::write(self.note_path(&new_file_name), &request.content)?;
-        if old_file_name != new_file_name {
-            let old_path = self.note_path(&old_file_name);
-            if old_path.exists() {
+        let new_path = self.note_path_in_category(&new_file_name, &new_category);
+        if let Some(parent) = new_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&new_path, &request.content)?;
+
+        if old_file_name != new_file_name || old_category != new_category {
+            let old_path = self.note_path_in_category(&old_file_name, &old_category);
+            if old_path.exists() && old_path != new_path {
                 fs::remove_file(old_path)?;
             }
         }
 
         note.title = request.title;
         note.file_name = new_file_name.clone();
+        note.category = new_category.clone();
         note.updated_at = now;
         note.word_count = word_count;
         note.preview = preview(&request.content);
@@ -261,6 +283,7 @@ impl NoteStore {
             id: note.id.clone(),
             title: note.title.clone(),
             file_name: note.file_name.clone(),
+            category: new_category,
             created_at: note.created_at,
             updated_at: note.updated_at,
             word_count: note.word_count,
@@ -280,21 +303,21 @@ impl NoteStore {
             .position(|note| note.id == id)
             .ok_or_else(|| AppError::not_found(format!("Note {id} was not found")))?;
         let metadata = metadata_file.notes.remove(index);
-        let path = self.note_path(&metadata.file_name);
+        let path = self.note_path_in_category(&metadata.file_name, &metadata.category);
         if path.exists() {
-            fs::remove_file(path)?;
+            fs::remove_file(&path)?;
         }
         self.save_metadata(&metadata_file)
     }
 
-    pub fn import_markdown_file(&self, path: &Path) -> Result<Note, AppError> {
+    pub fn import_markdown_file(&self, path: &Path, category: &str) -> Result<Note, AppError> {
         if !is_markdown_path(path) {
-            return Err(AppError::new("unsupportedFile", "只支持导入 .md 文件"));
+            return Err(AppError::new("unsupportedFile", "只支��导入 .md 文件"));
         }
 
         let content = fs::read_to_string(path)?;
         let title = imported_markdown_title(path, &content);
-        self.create_note(SaveNoteRequest { title, content })
+        self.create_note(SaveNoteRequest { title, content, category: category.to_string() })
     }
 
     pub fn export_markdown_file(&self, id: &str, path: &Path) -> Result<(), AppError> {
@@ -304,6 +327,114 @@ impl NoteStore {
         }
         fs::write(path, note.content)?;
         Ok(())
+    }
+
+    pub fn list_categories(&self) -> Result<Vec<String>, AppError> {
+        let notes_dir = self.notes_dir()?;
+        fs::create_dir_all(&notes_dir)?;
+        let mut categories = Vec::new();
+        for entry in fs::read_dir(&notes_dir)? {
+            let entry = entry?;
+            if entry.path().is_dir() {
+                categories.push(entry.file_name().to_string_lossy().to_string());
+            }
+        }
+        categories.sort();
+        Ok(categories)
+    }
+
+    pub fn create_category(&self, name: &str) -> Result<(), AppError> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err(AppError::new("invalidCategory", "分类名不能为空"));
+        }
+        let notes_dir = self.notes_dir()?;
+        let path = notes_dir.join(name);
+        fs::create_dir_all(&path)?;
+        Ok(())
+    }
+
+    pub fn rename_category(&self, old_name: &str, new_name: &str) -> Result<(), AppError> {
+        let new_name = new_name.trim();
+        if new_name.is_empty() {
+            return Err(AppError::new("invalidCategory", "分类名不能为空"));
+        }
+        let notes_dir = self.notes_dir()?;
+        let old_path = notes_dir.join(old_name);
+        let new_path = notes_dir.join(new_name);
+        if !old_path.exists() {
+            return Err(AppError::not_found(format!("分类「{old_name}」不存在")));
+        }
+        if new_path.exists() {
+            return Err(AppError::new("conflict", format!("分类「{new_name}」已存在")));
+        }
+        fs::rename(&old_path, &new_path)?;
+
+        let mut metadata_file = self.load_metadata()?;
+        for note in &mut metadata_file.notes {
+            if note.category == old_name {
+                note.category = new_name.to_string();
+            }
+        }
+        self.save_metadata(&metadata_file)?;
+        Ok(())
+    }
+
+    pub fn delete_category(&self, name: &str) -> Result<(), AppError> {
+        let notes_dir = self.notes_dir()?;
+        let category_path = notes_dir.join(name);
+        if !category_path.exists() {
+            return Err(AppError::not_found(format!("分类「{name}」不存在")));
+        }
+
+        // Move all notes in this category to uncategorized (root)
+        let mut metadata_file = self.load_metadata()?;
+        for note in &mut metadata_file.notes {
+            if note.category == name {
+                let old_path = category_path.join(&note.file_name);
+                let new_path = notes_dir.join(&note.file_name);
+                if old_path.exists() {
+                    fs::rename(&old_path, &new_path)?;
+                }
+                note.category = String::new();
+            }
+        }
+        self.save_metadata(&metadata_file)?;
+
+        // Remove the now-empty directory
+        if category_path.exists() {
+            fs::remove_dir_all(&category_path)?;
+        }
+        Ok(())
+    }
+
+    pub fn move_note_to_category(&self, id: &str, new_category: &str) -> Result<NoteMetadata, AppError> {
+        self.ensure_storage()?;
+        let mut metadata_file = self.load_metadata()?;
+        let note = metadata_file
+            .notes
+            .iter_mut()
+            .find(|note| note.id == id)
+            .ok_or_else(|| AppError::not_found(format!("Note {id} was not found")))?;
+
+        let old_category = note.category.clone();
+        if old_category == new_category {
+            return Ok(note.clone());
+        }
+
+        let old_path = self.note_path_in_category(&note.file_name, &old_category);
+        let new_path = self.note_path_in_category(&note.file_name, new_category);
+        if let Some(parent) = new_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        if old_path.exists() {
+            fs::rename(&old_path, &new_path)?;
+        }
+
+        note.category = new_category.to_string();
+        let result = note.clone();
+        self.save_metadata(&metadata_file)?;
+        Ok(result)
     }
 
     fn default_config(&self) -> AppConfig {
@@ -342,11 +473,15 @@ impl NoteStore {
         Ok(PathBuf::from(self.load_config()?.notes_dir))
     }
 
-    fn note_path(&self, file_name: &str) -> PathBuf {
+    fn note_path_in_category(&self, file_name: &str, category: &str) -> PathBuf {
         let notes_dir = self
             .notes_dir()
             .unwrap_or_else(|_| self.base_dir.join("notes"));
-        notes_dir.join(file_name)
+        if category.is_empty() {
+            notes_dir.join(file_name)
+        } else {
+            notes_dir.join(category).join(file_name)
+        }
     }
 
     fn find_metadata(&self, id: &str) -> Result<NoteMetadata, AppError> {
@@ -401,7 +536,22 @@ impl NoteStore {
         fs::create_dir_all(&notes_dir)?;
         let mut notes = Vec::new();
 
-        for entry in fs::read_dir(notes_dir)? {
+        self.scan_dir_for_notes(&notes_dir, "", &mut notes)?;
+
+        for entry in fs::read_dir(&notes_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                let category = entry.file_name().to_string_lossy().to_string();
+                self.scan_dir_for_notes(&path, &category, &mut notes)?;
+            }
+        }
+
+        Ok(MetadataFile { notes })
+    }
+
+    fn scan_dir_for_notes(&self, dir: &Path, category: &str, notes: &mut Vec<NoteMetadata>) -> Result<(), AppError> {
+        for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.extension().and_then(|extension| extension.to_str()) != Some("md") {
@@ -424,14 +574,14 @@ impl NoteStore {
                 id,
                 title,
                 file_name,
+                category: category.to_string(),
                 created_at: modified,
                 updated_at: modified,
                 word_count: count_words(&content),
                 preview: preview(&content),
             });
         }
-
-        Ok(MetadataFile { notes })
+        Ok(())
     }
 }
 
@@ -593,6 +743,7 @@ mod tests {
             .create_note(SaveNoteRequest {
                 title: "A/B:Test".into(),
                 content: "hello\nworld".into(),
+                category: String::new(),
             })
             .expect("create note");
 
@@ -616,6 +767,7 @@ mod tests {
                 SaveNoteRequest {
                     title: "".into(),
                     content: "# 新标题\nsecond line".into(),
+                    category: String::new(),
                 },
             )
             .expect("update note");
@@ -636,12 +788,14 @@ mod tests {
             .create_note(SaveNoteRequest {
                 title: "第一条".into(),
                 content: "# 第一条\n正文".into(),
+                category: String::new(),
             })
             .expect("create first");
         let second = store
             .create_note(SaveNoteRequest {
                 title: "第二条".into(),
                 content: "第二条正文".into(),
+                category: String::new(),
             })
             .expect("create second");
 
@@ -740,7 +894,7 @@ mod tests {
         let store = NoteStore::new(root.join("store"));
 
         let imported = store
-            .import_markdown_file(&source_path)
+            .import_markdown_file(&source_path, "")
             .expect("import markdown");
 
         assert_eq!(imported.title, "导入标题");
@@ -757,7 +911,7 @@ mod tests {
         let store = NoteStore::new(root.join("store"));
 
         let imported = store
-            .import_markdown_file(&source_path)
+            .import_markdown_file(&source_path, "")
             .expect("import markdown");
 
         assert_eq!(imported.title, "会议记录");
@@ -773,6 +927,7 @@ mod tests {
             .create_note(SaveNoteRequest {
                 title: "导出标题".into(),
                 content: content.into(),
+                category: String::new(),
             })
             .expect("create note");
         let export_path = root.join("exports").join("导出.md");

@@ -4,6 +4,7 @@ import {
   countNoteChars,
   filterNotes,
   getDisplayTitle,
+  groupNotesByCategory,
 } from "./noteUtils";
 import type { NoteMetadata } from "./types";
 
@@ -12,6 +13,7 @@ const notes: NoteMetadata[] = [
     id: "1",
     title: "读书笔记",
     fileName: "1.md",
+    category: "",
     createdAt: "2026-04-28T01:00:00Z",
     updatedAt: "2026-04-28T01:00:00Z",
     wordCount: 20,
@@ -21,6 +23,7 @@ const notes: NoteMetadata[] = [
     id: "2",
     title: "",
     fileName: "2.md",
+    category: "日常",
     createdAt: "2026-04-28T02:00:00Z",
     updatedAt: "2026-04-28T02:00:00Z",
     wordCount: 12,
@@ -47,5 +50,13 @@ describe("note utilities", () => {
     expect(filterNotes(notes, "采购").map((note) => note.id)).toEqual(["2"]);
     expect(filterNotes(notes, "2.MD").map((note) => note.id)).toEqual(["2"]);
     expect(filterNotes(notes, "   ").map((note) => note.id)).toEqual(["1", "2"]);
+  });
+
+  it("includes empty categories from allCategories list", () => {
+    const groups = groupNotesByCategory(notes, ["日常", "工作"]);
+    const categoryNames = groups.map((g) => g.category);
+    expect(categoryNames).toContain("工作");
+    const workGroup = groups.find((g) => g.category === "工作");
+    expect(workGroup?.notes).toEqual([]);
   });
 });
