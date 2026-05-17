@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { AppConfig, ThemeOption, TileColorMode, ViewMode } from "../features/settings/types";
 import { supportedShortcuts } from "../features/settings/api";
 import {
@@ -70,7 +71,7 @@ export function SettingsPanel({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+      <div className="flex-1 overflow-y-auto scrollbar-hidden px-4 py-4 space-y-5">
         <section className="space-y-2">
           <label className="block text-[11px] font-body text-ink-faint">
             主题
@@ -111,19 +112,11 @@ export function SettingsPanel({
           <label className="block text-[11px] font-body text-ink-faint">
             快捷键
           </label>
-          <select
+          <ShortcutDropdown
             value={config.globalShortcut}
-            onChange={(event) =>
-              setConfigValue("globalShortcut", event.target.value)
-            }
-            className="w-full h-8 px-2.5 rounded-lg bg-paper-warm/70 border border-paper-deep/40 text-[12px] text-ink-soft outline-none"
-          >
-            {supportedShortcuts.map((shortcut) => (
-              <option key={shortcut} value={shortcut}>
-                {shortcut}
-              </option>
-            ))}
-          </select>
+            options={[...supportedShortcuts]}
+            onChange={(v) => setConfigValue("globalShortcut", v)}
+          />
         </section>
 
         <section className="space-y-2">
@@ -237,14 +230,100 @@ interface ToggleRowProps {
 
 function ToggleRow({ label, checked, onChange }: ToggleRowProps) {
   return (
-    <label className="flex items-center justify-between h-9 rounded-lg px-2.5 bg-paper-warm/45 border border-paper-deep/25">
+    <label className="flex items-center justify-between h-9 rounded-lg px-2.5 bg-paper-warm/45 border border-paper-deep/25 cursor-pointer">
       <span className="text-[12px] text-ink-soft">{label}</span>
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-bamboo"
+        className="sr-only"
       />
+      <div
+        className={`relative w-8 h-[18px] rounded-full transition-colors duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          checked ? "bg-bamboo" : "bg-paper-deep/50"
+        }`}
+      >
+        <div
+          className="absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+          style={{
+            transform: `translateX(${checked ? 14 : 0}px)`,
+            transition: "transform 250ms cubic-bezier(0.22, 1, 0.36, 1)",
+            willChange: "transform",
+          }}
+        />
+      </div>
     </label>
+  );
+}
+
+interface ShortcutDropdownProps {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}
+
+function ShortcutDropdown({ value, options, onChange }: ShortcutDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full h-8 px-2.5 rounded-lg bg-paper-warm/70 border border-paper-deep/40 text-[12px] text-ink-soft flex items-center justify-between cursor-pointer hover:border-paper-deep/60 transition-colors"
+      >
+        <span>{value}</span>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`text-ink-ghost transition-transform duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${open ? "rotate-180" : ""}`}
+        >
+          <path d="M2 3.5l3 3 3-3" />
+        </svg>
+      </button>
+      <ul
+        className="absolute left-0 right-0 top-full mt-1 rounded-lg border border-paper-deep/30 bg-cloud/95 backdrop-blur-sm shadow-[0_4px_12px_rgba(0,0,0,0.06)] overflow-hidden z-10"
+        style={{
+          opacity: open ? 1 : 0,
+          transform: open ? "translateY(0)" : "translateY(-4px)",
+          transition: "opacity 200ms cubic-bezier(0.22, 1, 0.36, 1), transform 200ms cubic-bezier(0.22, 1, 0.36, 1)",
+          pointerEvents: open ? "auto" : "none",
+        }}
+      >
+        {options.map((opt) => (
+          <li key={opt} className="list-none">
+            <button
+              type="button"
+              onClick={() => { onChange(opt); setOpen(false); }}
+              className={`w-full h-8 px-2.5 text-left text-[12px] transition-colors cursor-pointer ${
+                opt === value
+                  ? "text-bamboo bg-bamboo-mist/40 font-medium"
+                  : "text-ink-soft hover:bg-paper-warm/60"
+              }`}
+            >
+              {opt}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
