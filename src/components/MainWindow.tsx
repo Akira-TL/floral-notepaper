@@ -1227,57 +1227,84 @@ export function MainWindow({
 
                 {categoryGroups.map((group: CategoryGroup) => {
                   if (!group.category) {
-                    return group.notes.map((note) => {
-                      const isSelected = note.id === selectedId;
-                      const isHovered = note.id === hoveredId;
-                      return (
-                        <div
-                          key={note.id}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("text/plain", note.id);
-                            e.dataTransfer.effectAllowed = "move";
-                          }}
-                          onClick={() => void handleSelectNote(note.id)}
-                          onContextMenu={(event) => handleOpenNoteMenu(event, note.id)}
-                          onMouseEnter={() => setHoveredId(note.id)}
-                          onMouseLeave={() => setHoveredId(null)}
-                          className={`w-full text-left rounded-xl px-3 py-2.5 transition-all duration-[600ms] cursor-pointer group relative ${
-                            isSelected
-                              ? "bg-bamboo-mist/70"
-                              : isHovered
-                                ? "bg-paper-warm/70"
-                                : "bg-transparent"
-                          }`}
-                        >
-                          <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-bamboo/60 transition-all duration-[600ms] ${
-                            isSelected ? "h-5 opacity-100" : "h-0 opacity-0"
-                          }`} />
-                          <div className="flex items-baseline justify-between mb-0.5">
-                            <span className={`text-[13px] font-display font-medium truncate pr-2 transition-colors ${
-                              isSelected ? "text-bamboo" : "text-ink-soft"
-                            }`}>
-                              {getDisplayTitle(note)}
-                            </span>
-                            <span className="text-[10px] text-ink-ghost font-mono tabular-nums shrink-0">
-                              {formatShortDate(note.updatedAt)}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-ink-ghost leading-relaxed line-clamp-2 group-hover:text-ink-faint transition-colors">
-                            {note.preview || "空白笔记"}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[10px] text-ink-ghost/60 font-mono tabular-nums">
-                              {formatTime(note.updatedAt)}
-                            </span>
-                            <span className="text-[10px] text-ink-ghost/40">·</span>
-                            <span className="text-[10px] text-ink-ghost/60 font-mono tabular-nums">
-                              {note.wordCount} 字
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    });
+                    return (
+                      <div
+                        key="__uncategorized__"
+                        className={`rounded-lg transition-all duration-200 ${
+                          dragOverCategory === ""
+                            ? "bg-bamboo/10 ring-1 ring-bamboo/20"
+                            : ""
+                        }`}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          setDragOverCategory("");
+                        }}
+                        onDragLeave={(e) => {
+                          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                            setDragOverCategory(null);
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setDragOverCategory(null);
+                          const noteId = e.dataTransfer.getData("text/plain");
+                          if (noteId) void handleMoveNote(noteId, "");
+                        }}
+                      >
+                        {group.notes.map((note) => {
+                          const isSelected = note.id === selectedId;
+                          const isHovered = note.id === hoveredId;
+                          return (
+                            <div
+                              key={note.id}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData("text/plain", note.id);
+                                e.dataTransfer.effectAllowed = "move";
+                              }}
+                              onClick={() => void handleSelectNote(note.id)}
+                              onContextMenu={(event) => handleOpenNoteMenu(event, note.id)}
+                              onMouseEnter={() => setHoveredId(note.id)}
+                              onMouseLeave={() => setHoveredId(null)}
+                              className={`w-full text-left rounded-xl px-3 py-2.5 transition-all duration-[600ms] cursor-pointer group relative ${
+                                isSelected
+                                  ? "bg-bamboo-mist/70"
+                                  : isHovered
+                                    ? "bg-paper-warm/70"
+                                    : "bg-transparent"
+                              }`}
+                            >
+                              <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-bamboo/60 transition-all duration-[600ms] ${
+                                isSelected ? "h-5 opacity-100" : "h-0 opacity-0"
+                              }`} />
+                              <div className="flex items-baseline justify-between mb-0.5">
+                                <span className={`text-[13px] font-display font-medium truncate pr-2 transition-colors ${
+                                  isSelected ? "text-bamboo" : "text-ink-soft"
+                                }`}>
+                                  {getDisplayTitle(note)}
+                                </span>
+                                <span className="text-[10px] text-ink-ghost font-mono tabular-nums shrink-0">
+                                  {formatShortDate(note.updatedAt)}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-ink-ghost leading-relaxed line-clamp-2 group-hover:text-ink-faint transition-colors">
+                                {note.preview || "空白笔记"}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] text-ink-ghost/60 font-mono tabular-nums">
+                                  {formatTime(note.updatedAt)}
+                                </span>
+                                <span className="text-[10px] text-ink-ghost/40">·</span>
+                                <span className="text-[10px] text-ink-ghost/60 font-mono tabular-nums">
+                                  {note.wordCount} 字
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
                   }
 
                   const isCollapsed = collapsedCategories.has(group.category);
@@ -1364,9 +1391,9 @@ export function MainWindow({
                         </span>
                       </div>
 
-                      {!isCollapsed && (
+                      <div className={`category-body ${isCollapsed ? "" : "expanded"}`}>
                         <div
-                          className="bg-bamboo/[0.03] border border-t-0 border-bamboo/10 rounded-b-lg pb-1 pt-1"
+                          className="category-body-inner bg-bamboo/[0.03] border border-t-0 border-bamboo/10 rounded-b-lg pb-1 pt-1"
                           onDragOver={(e) => {
                             e.preventDefault();
                             e.dataTransfer.dropEffect = "move";
@@ -1447,7 +1474,7 @@ export function MainWindow({
                             );
                           })}
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}
