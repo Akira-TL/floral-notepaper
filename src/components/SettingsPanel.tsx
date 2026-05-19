@@ -153,9 +153,13 @@ export function SettingsPanel({
         </section>
 
         <section className="space-y-2">
-          <label className="block text-[11px] font-body text-ink-faint">
-            快捷键与操作
-          </label>
+          <ToggleRow
+            label="Ctrl+右键快速关闭磁贴"
+            checked={config.tileCtrlClose}
+            onChange={(checked) =>
+              setConfigValue("tileCtrlClose", checked)
+            }
+          />
           <div className="space-y-1.5">
             <label className="block text-[11px] font-body text-ink-faint/70 px-0.5">
               呼出小窗快捷键
@@ -165,13 +169,6 @@ export function SettingsPanel({
               onChange={(v) => setConfigValue("globalShortcut", v)}
             />
           </div>
-          <ToggleRow
-            label="Ctrl+右键快速关闭磁贴"
-            checked={config.tileCtrlClose}
-            onChange={(checked) =>
-              setConfigValue("tileCtrlClose", checked)
-            }
-          />
         </section>
 
         <section className="space-y-2">
