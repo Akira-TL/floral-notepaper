@@ -11,7 +11,7 @@
 
 [反馈问题](https://github.com/Achilng/floral-notepaper/issues) · [更新日志](https://github.com/Achilng/floral-notepaper/releases)
 
-![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)
+![Version](https://img.shields.io/github/v/release/Achilng/floral-notepaper)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Stars](https://img.shields.io/github/stars/Achilng/floral-notepaper?color=ffcb47&labelColor=black)
 
