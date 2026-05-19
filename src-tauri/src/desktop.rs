@@ -297,6 +297,15 @@ pub fn runtime_config_changes(previous: &AppConfig, next: &AppConfig) -> Runtime
     }
 }
 
+fn clear_hidden_window_state(app: &AppHandle) {
+    if let Some(state) = app.try_state::<RuntimeState>() {
+        state.windows_hidden.store(false, Ordering::SeqCst);
+        if let Ok(mut guard) = state.hidden_window_labels.lock() {
+            guard.clear();
+        }
+    }
+}
+
 fn toggle_app_visibility(app: &AppHandle) {
     let Some(state) = app.try_state::<RuntimeState>() else {
         return;
@@ -340,12 +349,8 @@ pub fn apply_runtime_config(
 ) -> Result<(), Box<dyn Error>> {
     let changes = runtime_config_changes(previous, next);
 
-    if changes.global_shortcut_changed {
-        apply_global_shortcut_config(app, &next.global_shortcut)?;
-    }
-
-    if changes.toggle_visibility_shortcut_changed {
-        apply_visibility_toggle_shortcut_config(app, &next.toggle_visibility_shortcut)?;
+    if changes.global_shortcut_changed || changes.toggle_visibility_shortcut_changed {
+        apply_global_shortcut_config(app, next)?;
     }
 
     if changes.autostart_changed {
@@ -535,6 +540,8 @@ fn handle_tray_menu_event(app: &AppHandle, id: &str) -> Result<(), Box<dyn Error
 }
 
 pub fn show_main_window(app: &AppHandle) -> Result<(), AppError> {
+    clear_hidden_window_state(app);
+
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         window.unminimize()?;
         window.show()?;
@@ -571,6 +578,7 @@ fn open_notepad_window_now(
 ) -> Result<String, AppError> {
     if note_id.is_none() {
         if let Some(reused) = activate_pooled_notepad(app, bounds) {
+            clear_hidden_window_state(app);
             return Ok(reused);
         }
     }
@@ -811,6 +819,8 @@ fn open_or_focus_window(
     label: &str,
     opts: WindowOpenOptions,
 ) -> Result<String, AppError> {
+    clear_hidden_window_state(app);
+
     let visual_options = dynamic_window_visual_options(label);
 
     if let Some(window) = app.get_webview_window(label) {
@@ -1028,59 +1038,49 @@ fn register_global_shortcut(
 }
 
 #[cfg(desktop)]
-fn apply_global_shortcut_config(
-    app: &AppHandle,
-    shortcut_config: &str,
-) -> Result<(), Box<dyn Error>> {
-    let Some(shortcut) = shortcut_from_config(shortcut_config).and_then(to_tauri_shortcut) else {
+fn apply_global_shortcut_config(app: &AppHandle, config: &AppConfig) -> Result<(), Box<dyn Error>> {
+    let Some(shortcut) = shortcut_from_config(&config.global_shortcut).and_then(to_tauri_shortcut)
+    else {
         return Err(Box::new(AppError {
             code: "unsupportedShortcut".into(),
-            message: format!("unsupported global shortcut config: {shortcut_config}"),
+            message: format!(
+                "unsupported global shortcut config: {}",
+                config.global_shortcut
+            ),
         }));
     };
 
+    let visibility_shortcut = if config.toggle_visibility_shortcut.is_empty() {
+        None
+    } else {
+        Some(
+            shortcut_from_config(&config.toggle_visibility_shortcut)
+                .and_then(to_tauri_shortcut)
+                .ok_or_else(|| {
+                    Box::new(AppError {
+                        code: "unsupportedShortcut".into(),
+                        message: format!(
+                            "unsupported visibility shortcut config: {}",
+                            config.toggle_visibility_shortcut
+                        ),
+                    }) as Box<dyn Error>
+                })?,
+        )
+    };
+
+    app.global_shortcut().unregister_all()?;
     app.global_shortcut().register(shortcut)?;
+    if let Some(visibility_shortcut) = visibility_shortcut {
+        app.global_shortcut().register(visibility_shortcut)?;
+    }
     Ok(())
 }
 
 #[cfg(not(desktop))]
 fn apply_global_shortcut_config(
     _app: &AppHandle,
-    _shortcut_config: &str,
+    _config: &AppConfig,
 ) -> Result<(), Box<dyn Error>> {
-    Ok(())
-}
-
-#[cfg(desktop)]
-fn apply_visibility_toggle_shortcut_config(
-    app: &AppHandle,
-    shortcut_config: &str,
-) -> Result<(), Box<dyn Error>> {
-    let config = load_config()?;
-    app.global_shortcut().unregister_all()?;
-
-    let Some(shortcut) =
-        shortcut_from_config(&config.global_shortcut).and_then(to_tauri_shortcut)
-    else {
-        return Err(Box::new(AppError {
-            code: "unsupportedShortcut".into(),
-            message: format!("unsupported global shortcut config: {}", config.global_shortcut),
-        }));
-    };
-    app.global_shortcut().register(shortcut)?;
-
-    if !shortcut_config.is_empty() {
-        let Some(vis_shortcut) =
-            shortcut_from_config(shortcut_config).and_then(to_tauri_shortcut)
-        else {
-            return Err(Box::new(AppError {
-                code: "unsupportedShortcut".into(),
-                message: format!("unsupported visibility shortcut config: {shortcut_config}"),
-            }));
-        };
-        app.global_shortcut().register(vis_shortcut)?;
-    }
-
     Ok(())
 }
 
