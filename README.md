@@ -1,30 +1,23 @@
-<p align="center">
-  <img src="Docs/images/logo.png" width="120" alt="花笺图标">
-</p>
+<!-- markdownlint-disable -->
 
-<h1 align="center">花笺 Floral Notepaper</h1>
+<div align="center">
 
-<p align="center">
-  轻量、优雅、现代化的本地便签工具<br/>
-  基于 Tauri 2 + React 构建
-</p>
+<img src="./src-tauri/icons/icon.png" width="120" alt="花笺图标">
 
-<p align="center">
-  <a href="https://github.com/Achilng/floral-notepaper/issues">反馈问题</a>
-  · <a href="https://github.com/Achilng/floral-notepaper/releases">更新日志</a>
-</p>
+# 花笺 Floral Notepaper
 
-<p align="center">
-  <a href="https://github.com/Achilng/floral-notepaper/releases">
-    <img alt="Version" src="https://img.shields.io/badge/version-1.0.2-blue.svg">
-  </a>
-  <a href="LICENSE">
-    <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg">
-  </a>
-  <a href="https://github.com/Achilng/floral-notepaper">
-    <img alt="stars" src="https://img.shields.io/github/stars/Achilng/floral-notepaper?color=ffcb47&labelColor=black">
-  </a>
-</p>
+轻量、优雅、现代化的本地便签工具
+基于 Tauri 2 + React 构建
+
+[反馈问题](https://github.com/Achilng/floral-notepaper/issues) · [更新日志](https://github.com/Achilng/floral-notepaper/releases)
+
+![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Stars](https://img.shields.io/github/stars/Achilng/floral-notepaper?color=ffcb47&labelColor=black)
+
+</div>
+
+<!-- markdownlint-restore -->
 
 ---
 
@@ -86,13 +79,7 @@ npm run tauri build
 
 ## Star History
 
-<a href="https://star-history.com/#Achilng/floral-notepaper&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Achilng/floral-notepaper&type=Date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Achilng/floral-notepaper&type=Date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Achilng/floral-notepaper&type=Date&legend=top-left" />
- </picture>
-</a>
+[![Star History Chart](https://api.star-history.com/svg?repos=Achilng/floral-notepaper&type=Date&legend=top-left)](https://star-history.com/#Achilng/floral-notepaper&Date)
 
 ## 🌟 贡献者
 
