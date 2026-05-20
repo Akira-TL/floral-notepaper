@@ -24,6 +24,7 @@ describe("MainWindow settings", () => {
           rememberSurfaceSize: true,
           tileCtrlClose: true,
           toggleVisibilityShortcut: "",
+          tileRenderMarkdown: false,
         }}
       />,
     );

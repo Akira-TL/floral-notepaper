@@ -4,6 +4,7 @@ import {
   DEFAULT_TILE_COLOR,
   normalizeTileColor,
 } from "../features/settings/tileColor";
+import { MarkdownPreview } from "../features/markdown/MarkdownPreview";
 
 export interface TileProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "color" | "content" | "title"> {
@@ -13,6 +14,7 @@ export interface TileProps
   width?: number | string;
   rotation?: number;
   fontSize?: number;
+  renderMarkdown?: boolean;
 }
 
 const MARK_SIZE = 8;
@@ -71,6 +73,7 @@ export function Tile({
   width = 260,
   rotation = 0,
   fontSize = 14,
+  renderMarkdown = false,
   className = "",
   style,
   children,
@@ -106,9 +109,15 @@ export function Tile({
           </div>
         )}
         {content ? (
-          <div className="leading-[1.8] whitespace-pre-wrap font-body" style={{ color: contentColor, fontSize: `${fontSize}px` }}>
-            {content}
-          </div>
+          renderMarkdown ? (
+            <div style={{ color: contentColor }}>
+              <MarkdownPreview content={content} fontSize={fontSize} />
+            </div>
+          ) : (
+            <div className="leading-[1.8] whitespace-pre-wrap font-body" style={{ color: contentColor, fontSize: `${fontSize}px` }}>
+              {content}
+            </div>
+          )
         ) : (
           <div className="font-body text-center py-6" style={{ color: emptyColor, fontSize: `${fontSize}px` }}>
             空

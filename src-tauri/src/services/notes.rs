@@ -34,6 +34,8 @@ pub struct AppConfig {
     pub remember_surface_size: bool,
     #[serde(default = "default_tile_ctrl_close")]
     pub tile_ctrl_close: bool,
+    #[serde(default)]
+    pub tile_render_markdown: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub surface_width: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -503,6 +505,7 @@ impl NoteStore {
             external_file_auto_save: default_external_file_auto_save(),
             remember_surface_size: default_remember_surface_size(),
             tile_ctrl_close: default_tile_ctrl_close(),
+            tile_render_markdown: false,
             surface_width: None,
             surface_height: None,
             toggle_visibility_shortcut: default_toggle_visibility_shortcut(),
@@ -927,6 +930,7 @@ mod tests {
             external_file_auto_save: true,
             remember_surface_size: true,
             tile_ctrl_close: true,
+            tile_render_markdown: false,
             surface_width: None,
             surface_height: None,
             toggle_visibility_shortcut: String::new(),

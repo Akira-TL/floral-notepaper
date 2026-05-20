@@ -44,6 +44,7 @@ describe("settings api", () => {
       rememberSurfaceSize: true,
       tileCtrlClose: true,
       toggleVisibilityShortcut: "",
+      tileRenderMarkdown: false,
     };
     mockedInvoke.mockResolvedValue(config);
 
@@ -70,6 +71,7 @@ describe("settings api", () => {
       rememberSurfaceSize: true,
       tileCtrlClose: true,
       toggleVisibilityShortcut: "",
+      tileRenderMarkdown: false,
     };
     mockedInvoke.mockResolvedValue(config);
 

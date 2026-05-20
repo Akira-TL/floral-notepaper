@@ -19,6 +19,7 @@ const config = {
   rememberSurfaceSize: true,
   tileCtrlClose: true,
   toggleVisibilityShortcut: "",
+  tileRenderMarkdown: false,
 };
 
 describe("SettingsPanel", () => {

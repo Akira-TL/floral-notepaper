@@ -128,6 +128,7 @@ export function NotePad({
   );
   const [tileColorMode, setTileColorMode] = useState<TileColorMode>("system");
   const [surfaceFontSize, setSurfaceFontSize] = useState(14);
+  const [tileRenderMarkdown, setTileRenderMarkdown] = useState(false);
   const [tileColor, setTileColor] = useState(() =>
     resolveTileColor("system", normalizeTileColor(initialTileColor)),
   );
@@ -162,6 +163,7 @@ export function NotePad({
         if (!cancelled) {
           setNoteSurfaceAutoSave(loadedConfig.noteSurfaceAutoSave);
           setSurfaceFontSize(loadedConfig.surfaceFontSize ?? 14);
+          setTileRenderMarkdown(loadedConfig.tileRenderMarkdown ?? false);
           setTileColorRaw(normalizeTileColor(loadedConfig.tileColor));
           setTileColorMode(loadedConfig.tileColorMode ?? "system");
           setTileColor(
@@ -218,6 +220,7 @@ export function NotePad({
       tileColor?: string;
       tileColorMode?: TileColorMode;
       surfaceFontSize?: number;
+      tileRenderMarkdown?: boolean;
     }>("config-changed", (event) => {
       const mode = event.payload.tileColorMode ?? tileColorMode;
       const raw = event.payload.tileColor ?? tileColorRaw;
@@ -225,6 +228,7 @@ export function NotePad({
       setTileColorRaw(normalizeTileColor(raw));
       setTileColor(resolveTileColor(mode, raw));
       if (event.payload.surfaceFontSize != null) setSurfaceFontSize(event.payload.surfaceFontSize);
+      if (event.payload.tileRenderMarkdown != null) setTileRenderMarkdown(event.payload.tileRenderMarkdown);
     });
     return () => {
       void unlisten.then((fn) => fn());
@@ -485,6 +489,7 @@ export function NotePad({
           content={errorMessage || content}
           color={tileColor}
           fontSize={surfaceFontSize}
+          renderMarkdown={!errorMessage && tileRenderMarkdown}
           width="100%"
           className="h-full cursor-default"
           data-surface-mode={surfaceMode}

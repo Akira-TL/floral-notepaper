@@ -150,8 +150,16 @@ export function SettingsPanel({
               setConfigValue("rememberSurfaceSize", checked)
             }
           />
+          <ToggleRow
+            label="磁贴渲染 Markdown"
+            checked={config.tileRenderMarkdown}
+            onChange={(checked) =>
+              setConfigValue("tileRenderMarkdown", checked)
+            }
+          />
         </section>
 
+        {/* 快捷键功能设置区域，与上方常规设置分开 */}
         <section className="space-y-2">
           <ToggleRow
             label="Ctrl+右键快速关闭磁贴"
