@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeMap,
     env, fmt, fs, io,
     path::{Path, PathBuf},
 };
@@ -9,6 +10,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AppConfig {
+    #[serde(default = "default_locale")]
+    pub locale: String,
     pub notes_dir: String,
     pub global_shortcut: String,
     pub close_to_tray: bool,
@@ -86,6 +89,8 @@ pub struct Note {
 pub struct AppError {
     pub code: String,
     pub message: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub details: BTreeMap<String, String>,
 }
 
 impl AppError {
@@ -93,11 +98,38 @@ impl AppError {
         Self {
             code: code.into(),
             message: message.into(),
+            details: BTreeMap::new(),
         }
     }
 
-    fn not_found(message: impl Into<String>) -> Self {
-        Self::new("notFound", message)
+    fn with_detail(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.details.insert(key.into(), value.into());
+        self
+    }
+
+    fn note_not_found(id: &str) -> Self {
+        Self::new("noteNotFound", format!("Note {id} was not found")).with_detail("noteId", id)
+    }
+
+    fn unsupported_file() -> Self {
+        Self::new("unsupportedFile", "只支持导入 .md 文件")
+    }
+
+    fn category_name_empty() -> Self {
+        Self::new("categoryNameEmpty", "分类名不能为空")
+    }
+
+    fn category_name_invalid_chars() -> Self {
+        Self::new("categoryNameInvalidChars", "分类名不能包含特殊字符")
+    }
+
+    fn category_not_found(name: &str) -> Self {
+        Self::new("categoryNotFound", format!("分类「{name}」不存在")).with_detail("category", name)
+    }
+
+    fn category_already_exists(name: &str) -> Self {
+        Self::new("categoryAlreadyExists", format!("分类「{name}」已存在"))
+            .with_detail("category", name)
     }
 }
 
@@ -277,7 +309,7 @@ impl NoteStore {
             .notes
             .iter_mut()
             .find(|note| note.id == id)
-            .ok_or_else(|| AppError::not_found(format!("Note {id} was not found")))?;
+            .ok_or_else(|| AppError::note_not_found(id))?;
 
         let old_file_name = note.file_name.clone();
         let old_category = note.category.clone();
@@ -328,7 +360,7 @@ impl NoteStore {
             .notes
             .iter()
             .position(|note| note.id == id)
-            .ok_or_else(|| AppError::not_found(format!("Note {id} was not found")))?;
+            .ok_or_else(|| AppError::note_not_found(id))?;
         let metadata = metadata_file.notes.remove(index);
         let path = self.note_path_in_category(&metadata.file_name, &metadata.category);
         if path.exists() {
@@ -339,7 +371,7 @@ impl NoteStore {
 
     pub fn import_markdown_file(&self, path: &Path, category: &str) -> Result<Note, AppError> {
         if !is_markdown_path(path) {
-            return Err(AppError::new("unsupportedFile", "只支��导入 .md 文件"));
+            return Err(AppError::unsupported_file());
         }
 
         let content = fs::read_to_string(path)?;
@@ -377,10 +409,10 @@ impl NoteStore {
     pub fn create_category(&self, name: &str) -> Result<(), AppError> {
         let name = name.trim();
         if name.is_empty() {
-            return Err(AppError::new("invalidCategory", "分类名不能为空"));
+            return Err(AppError::category_name_empty());
         }
         if name.contains('/') || name.contains('\\') || name.contains(':') || name.contains("..") {
-            return Err(AppError::new("invalidCategory", "分类名不能包含特殊字符"));
+            return Err(AppError::category_name_invalid_chars());
         }
         let notes_dir = self.notes_dir()?;
         let path = notes_dir.join(name);
@@ -391,26 +423,23 @@ impl NoteStore {
     pub fn rename_category(&self, old_name: &str, new_name: &str) -> Result<(), AppError> {
         let new_name = new_name.trim();
         if new_name.is_empty() {
-            return Err(AppError::new("invalidCategory", "分类名不能为空"));
+            return Err(AppError::category_name_empty());
         }
         if new_name.contains('/')
             || new_name.contains('\\')
             || new_name.contains(':')
             || new_name.contains("..")
         {
-            return Err(AppError::new("invalidCategory", "分类名不能包含特殊字符"));
+            return Err(AppError::category_name_invalid_chars());
         }
         let notes_dir = self.notes_dir()?;
         let old_path = notes_dir.join(old_name);
         let new_path = notes_dir.join(new_name);
         if !old_path.exists() {
-            return Err(AppError::not_found(format!("分类「{old_name}」不存在")));
+            return Err(AppError::category_not_found(old_name));
         }
         if new_path.exists() {
-            return Err(AppError::new(
-                "conflict",
-                format!("分类「{new_name}」已存在"),
-            ));
+            return Err(AppError::category_already_exists(new_name));
         }
         fs::rename(&old_path, &new_path)?;
 
@@ -428,7 +457,7 @@ impl NoteStore {
         let notes_dir = self.notes_dir()?;
         let category_path = notes_dir.join(name);
         if !category_path.exists() {
-            return Err(AppError::not_found(format!("分类「{name}」不存在")));
+            return Err(AppError::category_not_found(name));
         }
 
         // Move all notes in this category to uncategorized (root)
@@ -463,7 +492,7 @@ impl NoteStore {
             .notes
             .iter_mut()
             .find(|note| note.id == id)
-            .ok_or_else(|| AppError::not_found(format!("Note {id} was not found")))?;
+            .ok_or_else(|| AppError::note_not_found(id))?;
 
         let old_category = note.category.clone();
         if old_category == new_category {
@@ -487,6 +516,7 @@ impl NoteStore {
 
     fn default_config(&self) -> AppConfig {
         AppConfig {
+            locale: default_locale(),
             notes_dir: self.base_dir.join("notes").to_string_lossy().to_string(),
             #[cfg(target_os = "macos")]
             global_shortcut: "Option+Space".into(),
@@ -547,7 +577,7 @@ impl NoteStore {
             .notes
             .into_iter()
             .find(|note| note.id == id)
-            .ok_or_else(|| AppError::not_found(format!("Note {id} was not found")))
+            .ok_or_else(|| AppError::note_not_found(id))
     }
 
     fn file_name_for(&self, id: &str, title: &str) -> String {
@@ -797,6 +827,10 @@ fn default_toggle_visibility_shortcut() -> String {
     String::new()
 }
 
+fn default_locale() -> String {
+    "zh-CN".into()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -911,10 +945,12 @@ mod tests {
         assert_eq!(default_config.tile_color, "#f6f3ec");
         assert_eq!(default_config.tile_color_mode, "system");
         assert_eq!(default_config.theme, "system");
+        assert_eq!(default_config.locale, "zh-CN");
         assert!(default_config.notes_dir.ends_with("notes"));
 
         let custom_notes_dir = store.base_dir().join("custom-notes");
         let saved = AppConfig {
+            locale: "en-US".into(),
             notes_dir: custom_notes_dir.to_string_lossy().to_string(),
             global_shortcut: "Alt+Space".into(),
             close_to_tray: false,
@@ -970,6 +1006,7 @@ mod tests {
         assert_eq!(loaded.tile_color, "#f6f3ec");
         assert_eq!(loaded.tile_color_mode, "system");
         assert_eq!(loaded.theme, "system");
+        assert_eq!(loaded.locale, "zh-CN");
         assert_eq!(loaded.font_size, 14);
         assert_eq!(loaded.surface_font_size, 14);
     }

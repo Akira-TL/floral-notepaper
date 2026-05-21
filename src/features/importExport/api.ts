@@ -1,3 +1,4 @@
+import { t, type TFunction } from "i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Note } from "../notes/types";
@@ -37,15 +38,24 @@ export async function exportMarkdownNote(note: ExportableNote): Promise<boolean>
   return true;
 }
 
-function markdownFileName(title: string): string {
-  const safeTitle = safeFileStem(title) || "无标题笔记";
+function markdownFileName(title: string, translate: TFunction = t): string {
+  const safeTitle =
+    safeFileStem(title) || translate("common.untitledNote", { defaultValue: "无标题笔记" });
   return `${safeTitle}.md`;
 }
 
 function safeFileStem(value: string): string {
   return value
     .trim()
-    .replace(/[<>:"/\\|?*\u0000-\u001f]+/g, "_")
+    .replace(/./g, (char) => {
+      const code = char.codePointAt(0) ?? 0;
+
+      if ('<>:"/\\|?*'.includes(char) || code < 0x20) {
+        return "_";
+      }
+
+      return char;
+    })
     .replace(/\s+/g, "_")
     .replace(/_+/g, "_")
     .replace(/^_+|_+$/g, "")
