@@ -71,11 +71,23 @@ mod keyboard_hook {
         fn GetModuleHandleW(lp_module_name: *const u16) -> isize;
     }
 
+    #[link(name = "imm32")]
+    extern "system" {
+        fn ImmGetHotKey(
+            dw_hot_key_id: u32,
+            lpu_modifiers: *mut u32,
+            lpu_vkey: *mut u32,
+            phkl: *mut isize,
+        ) -> i32;
+        fn ImmSetHotKey(dw_hot_key_id: u32, u_modifiers: u32, u_vkey: u32, hkl: isize) -> i32;
+    }
+
     static HOOK_HANDLE: AtomicIsize = AtomicIsize::new(0);
     static HOOK_THREAD_ID: AtomicU32 = AtomicU32::new(0);
     static HOOK_MODS: AtomicU8 = AtomicU8::new(0);
     static HOOK_APP: Mutex<Option<AppHandle>> = Mutex::new(None);
     static HOOK_THREAD: Mutex<Option<std::thread::JoinHandle<()>>> = Mutex::new(None);
+    static SAVED_IME_HOTKEYS: Mutex<Vec<(u32, u32, u32, isize)>> = Mutex::new(Vec::new());
 
     #[derive(Debug, Clone, Serialize)]
     #[serde(rename_all = "camelCase")]
@@ -265,8 +277,51 @@ mod keyboard_hook {
         }
     }
 
+    const IME_HOTKEY_IDS: &[u32] = &[
+        0x10, // IME_CHOTKEY_IME_NONIME_TOGGLE  (Ctrl+Space)
+        0x11, // IME_CHOTKEY_SHAPE_TOGGLE        (Shift+Space)
+        0x12, // IME_CHOTKEY_SYMBOL_TOGGLE       (Ctrl+.)
+        0x30, // IME_JHOTKEY_CLOSE_OPEN
+        0x50, // IME_KHOTKEY_SHAPE_TOGGLE
+        0x51, // IME_KHOTKEY_HANJACONVERT
+        0x52, // IME_KHOTKEY_ENGLISH
+        0x70, // IME_THOTKEY_IME_NONIME_TOGGLE
+        0x71, // IME_THOTKEY_SHAPE_TOGGLE
+        0x72, // IME_THOTKEY_SYMBOL_TOGGLE
+    ];
+
+    fn disable_ime_hotkeys() {
+        let mut saved = Vec::new();
+        for &id in IME_HOTKEY_IDS {
+            let mut modifiers = 0u32;
+            let mut vkey = 0u32;
+            let mut hkl: isize = 0;
+            if unsafe { ImmGetHotKey(id, &mut modifiers, &mut vkey, &mut hkl) } != 0 {
+                saved.push((id, modifiers, vkey, hkl));
+                unsafe {
+                    ImmSetHotKey(id, 0, 0, 0);
+                }
+            }
+        }
+        if let Ok(mut guard) = SAVED_IME_HOTKEYS.lock() {
+            *guard = saved;
+        }
+    }
+
+    fn restore_ime_hotkeys() {
+        if let Ok(mut guard) = SAVED_IME_HOTKEYS.lock() {
+            for &(id, modifiers, vkey, hkl) in guard.iter() {
+                unsafe {
+                    ImmSetHotKey(id, modifiers, vkey, hkl);
+                }
+            }
+            guard.clear();
+        }
+    }
+
     pub fn start(app: AppHandle) {
         stop();
+        disable_ime_hotkeys();
 
         if let Ok(mut guard) = HOOK_APP.lock() {
             *guard = Some(app);
@@ -288,7 +343,6 @@ mod keyboard_hook {
 
             HOOK_HANDLE.store(hook, Ordering::SeqCst);
             HOOK_THREAD_ID.store(thread_id, Ordering::SeqCst);
-            eprintln!("[keyboard_hook] installed (thread {thread_id})");
             let _ = tx.send(true);
 
             let mut msg: MSG = unsafe { std::mem::zeroed() };
@@ -307,7 +361,6 @@ mod keyboard_hook {
             }
             HOOK_HANDLE.store(0, Ordering::SeqCst);
             HOOK_THREAD_ID.store(0, Ordering::SeqCst);
-            eprintln!("[keyboard_hook] uninstalled");
         });
 
         match rx.recv() {
@@ -338,6 +391,7 @@ mod keyboard_hook {
             *guard = None;
         }
         HOOK_MODS.store(0, Ordering::SeqCst);
+        restore_ime_hotkeys();
     }
 }
 use tauri::{
@@ -2002,13 +2056,11 @@ fn apply_autostart(_app: &AppHandle, _enabled: bool) -> Result<(), Box<dyn Error
 
 #[cfg(desktop)]
 pub fn start_shortcut_recording(app: &AppHandle) -> Result<(), Box<dyn Error>> {
-    eprintln!("[shortcut_recording] start: unregistering global shortcuts");
     app.global_shortcut().unregister_all()?;
 
     #[cfg(target_os = "windows")]
     keyboard_hook::start(app.clone());
 
-    eprintln!("[shortcut_recording] start: done");
     Ok(())
 }
 
