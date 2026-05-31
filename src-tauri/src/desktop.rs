@@ -34,6 +34,7 @@ mod keyboard_hook {
     const MOD_META: u8 = 8;
 
     #[repr(C)]
+    #[allow(clippy::upper_case_acronyms)]
     struct KBDLLHOOKSTRUCT {
         vk_code: u32,
         scan_code: u32,
@@ -43,6 +44,7 @@ mod keyboard_hook {
     }
 
     #[repr(C)]
+    #[allow(clippy::upper_case_acronyms)]
     struct MSG {
         hwnd: isize,
         message: u32,
@@ -53,6 +55,7 @@ mod keyboard_hook {
         pt_y: i32,
     }
 
+    #[allow(clippy::upper_case_acronyms)]
     type HOOKPROC = extern "system" fn(i32, usize, isize) -> isize;
 
     extern "system" {
