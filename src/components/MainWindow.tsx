@@ -3,6 +3,7 @@ import type { MouseEvent } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { emit, listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { exportMarkdownNote, importMarkdownNote } from "../features/importExport/api";
 import { MarkdownPreview } from "../features/markdown/MarkdownPreview";
 import {
@@ -1159,6 +1160,12 @@ export function MainWindow({
 
   useEffect(() => {
     void isCurrentWindowMaximized().then(setIsMaximized);
+    const unlisten = getCurrentWindow().onResized(() => {
+      void isCurrentWindowMaximized().then(setIsMaximized);
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
   }, []);
 
   useEffect(() => {
