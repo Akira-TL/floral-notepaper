@@ -20,6 +20,7 @@ import {
   setCurrentWindowAlwaysOnTop,
   showCurrentWindow,
   startCurrentWindowDrag,
+  startCurrentWindowDragWithOffset,
   startCurrentWindowResize,
 } from "../features/windows/controls";
 import type { ResizeDirection } from "../features/windows/controls";
@@ -493,6 +494,11 @@ export function NotePad({
     const handleMouseMove = (event: globalThis.MouseEvent) => {
       const intent = tileDragIntentRef.current;
       if (!intent) return;
+      // Pointer left the window during a missed mouseup, etc. — drop the stale intent.
+      if ((event.buttons & 1) === 0) {
+        clearPendingTileDrag();
+        return;
+      }
 
       const distanceX = event.screenX - intent.x;
       const distanceY = event.screenY - intent.y;
@@ -500,7 +506,8 @@ export function NotePad({
       if (distance < TILE_DRAG_START_THRESHOLD_PX) return;
 
       tileDragIntentRef.current = null;
-      void startCurrentWindowDrag().catch(() => undefined);
+      // Compensate for the deadzone drift before handing off to the OS drag.
+      void startCurrentWindowDragWithOffset(distanceX, distanceY).catch(() => undefined);
     };
 
     const handleMouseUp = () => clearPendingTileDrag();
