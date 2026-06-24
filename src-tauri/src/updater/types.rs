@@ -80,8 +80,11 @@ pub struct UpdateSettingsDto {
     pub download_source_preference: DownloadSourcePreference,
     pub channel: UpdateChannel,
     pub allow_prerelease: bool,
+    #[serde(default)]
     pub last_auto_check_at: Option<DateTime<Utc>>,
+    #[serde(default)]
     pub has_mirror_chyan_cdk: bool,
+    #[serde(default)]
     pub mirror_chyan_cdk_length: Option<u32>,
 }
 
@@ -231,7 +234,7 @@ pub struct UpdateInstallResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateDownloadProgressDto {
+pub struct UpdateDownloadProgress {
     pub version: String,
     pub asset_name: String,
     pub downloaded_bytes: u64,
