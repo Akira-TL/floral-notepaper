@@ -10,10 +10,20 @@ import {
 } from "../features/quickNoteRules/api";
 
 const DEFAULT_RULES: QuickNoteRules = {
-  suppressQuickNoteInFullscreen: true,
+  enabled: false,
+  suppressQuickNoteInFullscreen: false,
   appBlacklist: [],
   appWhitelist: [],
 };
+
+function normalizeRules(value: QuickNoteRules | null | undefined): QuickNoteRules {
+  return {
+    ...DEFAULT_RULES,
+    ...value,
+    appBlacklist: Array.isArray(value?.appBlacklist) ? value.appBlacklist : [],
+    appWhitelist: Array.isArray(value?.appWhitelist) ? value.appWhitelist : [],
+  };
+}
 
 export function QuickNoteRulesSection() {
   const { t } = useTranslation();
@@ -26,7 +36,7 @@ export function QuickNoteRulesSection() {
     setLoading(true);
     setError(null);
     try {
-      setRules(await getQuickNoteRules());
+      setRules(normalizeRules(await getQuickNoteRules()));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -42,14 +52,16 @@ export function QuickNoteRulesSection() {
     setSaving(true);
     setError(null);
     try {
-      const saved = await saveQuickNoteRules(nextRules);
-      setRules(saved);
+      const saved = await saveQuickNoteRules(normalizeRules(nextRules));
+      setRules(normalizeRules(saved));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
   };
+
+  const rulesDisabled = loading || saving || !rules.enabled;
 
   return (
     <section className="space-y-2">
@@ -60,7 +72,8 @@ export function QuickNoteRulesSection() {
           </label>
           <p className="mt-1 text-[10px] text-ink-ghost leading-relaxed">
             {t("settings.quickNoteRules.description", {
-              defaultValue: "控制全屏应用、白名单和黑名单中是否响应快速记录快捷键。",
+              defaultValue:
+                "关闭后不应用全屏保护、允许列表和排除列表，保持原有快速记录行为。",
             })}
           </p>
         </div>
@@ -75,11 +88,20 @@ export function QuickNoteRulesSection() {
       </div>
 
       <ToggleRow
+        label={t("settings.quickNoteRules.enabled", {
+          defaultValue: "启用快速记录响应规则",
+        })}
+        checked={rules.enabled}
+        disabled={loading || saving}
+        onChange={(checked) => void persist({ ...rules, enabled: checked })}
+      />
+
+      <ToggleRow
         label={t("settings.quickNoteRules.suppressFullscreen", {
           defaultValue: "全屏应用中禁用快速记录",
         })}
         checked={rules.suppressQuickNoteInFullscreen}
-        disabled={loading || saving}
+        disabled={rulesDisabled}
         onChange={(checked) => void persist({ ...rules, suppressQuickNoteInFullscreen: checked })}
       />
 
@@ -92,7 +114,7 @@ export function QuickNoteRulesSection() {
         submitTitle={t("settings.quickNoteRules.submitAdd", { defaultValue: "添加" })}
         removeLabel={t("common.remove", { defaultValue: "移除" })}
         apps={rules.appWhitelist}
-        disabled={loading || saving}
+        disabled={rulesDisabled}
         onAdd={(exeName) => void persist(addAppToWhitelist(rules, exeName))}
         onRemove={(exeName) => void persist(removeAppFromRules(rules, exeName))}
       />
@@ -105,7 +127,7 @@ export function QuickNoteRulesSection() {
         submitTitle={t("settings.quickNoteRules.submitAdd", { defaultValue: "添加" })}
         removeLabel={t("common.remove", { defaultValue: "移除" })}
         apps={rules.appBlacklist}
-        disabled={loading || saving}
+        disabled={rulesDisabled}
         onAdd={(exeName) => void persist(addAppToBlacklist(rules, exeName))}
         onRemove={(exeName) => void persist(removeAppFromRules(rules, exeName))}
       />
@@ -196,6 +218,7 @@ function RuleList({
               type="text"
               value={draft}
               autoFocus
+              disabled={disabled}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -207,7 +230,7 @@ function RuleList({
               }}
               placeholder={placeholder}
               spellCheck={false}
-              className="min-w-0 flex-1 h-full p-0 bg-transparent border-0 text-[10px] font-mono text-ink-soft outline-none placeholder:text-ink-ghost/70"
+              className="min-w-0 flex-1 h-full p-0 bg-transparent border-0 text-[10px] font-mono text-ink-soft outline-none placeholder:text-ink-ghost/70 disabled:opacity-50"
             />
             <button
               type="button"
@@ -259,18 +282,36 @@ function ToggleRow({
   disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
+  const trackClassName = [
+    "relative w-9 h-5 rounded-full transition-colors",
+    checked ? "bg-bamboo" : "bg-paper-deep/50",
+    disabled ? "opacity-50" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const thumbClassName = [
+    "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-cloud shadow-sm transition-transform",
+    checked ? "translate-x-4" : "translate-x-0",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <label className="flex items-center justify-between gap-3 text-[11px] text-ink-faint cursor-pointer">
+    <label
+      className={`flex items-center justify-between gap-3 text-[11px] text-ink-faint ${
+        disabled ? "cursor-not-allowed opacity-75" : "cursor-pointer"
+      }`}
+    >
       <span>{label}</span>
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
-        className="sr-only peer"
+        className="sr-only"
       />
-      <span className="relative w-9 h-5 rounded-full bg-paper-deep/50 transition-colors peer-checked:bg-bamboo peer-disabled:opacity-50">
-        <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-cloud shadow-sm transition-transform peer-checked:translate-x-4" />
+      <span className={trackClassName}>
+        <span className={thumbClassName} />
       </span>
     </label>
   );
