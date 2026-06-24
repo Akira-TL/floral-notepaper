@@ -1,12 +1,11 @@
-import { emit } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getConfig, saveConfig } from "../features/settings/api";
-import type { AppConfig } from "../features/settings/types";
 import {
   addAppToBlacklist,
   addAppToWhitelist,
+  getQuickNoteRules,
   removeAppFromRules,
+  saveQuickNoteRules,
   type QuickNoteRules,
 } from "../features/quickNoteRules/api";
 
@@ -16,28 +15,8 @@ const DEFAULT_RULES: QuickNoteRules = {
   appWhitelist: [],
 };
 
-function rulesFromConfig(config: AppConfig | null | undefined): QuickNoteRules {
-  return {
-    suppressQuickNoteInFullscreen: Boolean(config?.suppressQuickNoteInFullscreen),
-    appBlacklist: Array.isArray(config?.quickNoteAppBlacklist) ? config.quickNoteAppBlacklist : [],
-    appWhitelist: Array.isArray(config?.quickNoteAppWhitelist) ? config.quickNoteAppWhitelist : [],
-  };
-}
-
-function applyRulesToConfig(config: AppConfig, rules: QuickNoteRules): AppConfig {
-  const normalized = normalizeRules(rules);
-  return {
-    ...config,
-    suppressQuickNoteInFullscreen: normalized.suppressQuickNoteInFullscreen,
-    quickNoteAppBlacklist: normalized.appBlacklist,
-    quickNoteAppWhitelist: normalized.appWhitelist,
-  };
-}
-
 function normalizeRules(value: QuickNoteRules | null | undefined): QuickNoteRules {
   return {
-    ...DEFAULT_RULES,
-    ...value,
     suppressQuickNoteInFullscreen: Boolean(value?.suppressQuickNoteInFullscreen),
     appBlacklist: Array.isArray(value?.appBlacklist) ? value.appBlacklist : [],
     appWhitelist: Array.isArray(value?.appWhitelist) ? value.appWhitelist : [],
@@ -46,7 +25,6 @@ function normalizeRules(value: QuickNoteRules | null | undefined): QuickNoteRule
 
 export function QuickNoteRulesSection() {
   const { t } = useTranslation();
-  const [config, setConfig] = useState<AppConfig | null>(null);
   const [rules, setRules] = useState<QuickNoteRules>(DEFAULT_RULES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,9 +34,8 @@ export function QuickNoteRulesSection() {
     setLoading(true);
     setError(null);
     try {
-      const loadedConfig = await getConfig();
-      setConfig(loadedConfig);
-      setRules(rulesFromConfig(loadedConfig));
+      const loadedRules = await getQuickNoteRules();
+      setRules(normalizeRules(loadedRules));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -71,30 +48,25 @@ export function QuickNoteRulesSection() {
   }, [load]);
 
   const persist = async (nextRules: QuickNoteRules) => {
-    const baseConfig = config ?? (await getConfig());
-    const nextConfig = applyRulesToConfig(baseConfig, nextRules);
-    const normalizedRules = rulesFromConfig(nextConfig);
+    const previousRules = rules;
+    const normalizedRules = normalizeRules(nextRules);
 
     setSaving(true);
     setError(null);
     setRules(normalizedRules);
-    setConfig(nextConfig);
 
     try {
-      const savedConfig = await saveConfig(nextConfig);
-      setConfig(savedConfig);
-      setRules(rulesFromConfig(savedConfig));
-      void emit("config-changed", savedConfig);
+      const savedRules = await saveQuickNoteRules(normalizedRules);
+      setRules(normalizeRules(savedRules));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-      setRules(rulesFromConfig(baseConfig));
-      setConfig(baseConfig);
+      setRules(previousRules);
     } finally {
       setSaving(false);
     }
   };
 
-  const disabled = loading || saving || config === null;
+  const disabled = loading || saving;
 
   return (
     <section className="space-y-2">
