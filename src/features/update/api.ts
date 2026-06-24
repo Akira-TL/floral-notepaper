@@ -9,6 +9,8 @@ import type {
   UpdateState,
 } from "./types";
 
+let frontendErrorLoggingInstalled = false;
+
 function stringifyForLog(value: unknown): string {
   try {
     return JSON.stringify(value);
@@ -17,15 +19,37 @@ function stringifyForLog(value: unknown): string {
   }
 }
 
-function logUpdateSettings(label: string, value?: unknown): void {
-  if (import.meta.env.DEV) {
-    if (value === undefined) {
-      console.debug(`[update:settings:${label}]`);
-      return;
-    }
-    console.debug(`[update:settings:${label}]`, value, stringifyForLog(value));
+function installFrontendErrorLogging(): void {
+  if (!import.meta.env.DEV || frontendErrorLoggingInstalled || typeof window === "undefined") {
+    return;
   }
+  frontendErrorLoggingInstalled = true;
+
+  window.addEventListener("error", (event) => {
+    console.error("[update:frontend:error]", {
+      message: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error,
+    });
+  });
+
+  window.addEventListener("unhandledrejection", (event) => {
+    console.error("[update:frontend:unhandledrejection]", event.reason);
+  });
 }
+
+function logUpdateSettings(label: string, value?: unknown): void {
+  if (!import.meta.env.DEV) return;
+  if (value === undefined) {
+    console.log(`[update:settings:${label}]`);
+    return;
+  }
+  console.log(`[update:settings:${label}]`, value, stringifyForLog(value));
+}
+
+installFrontendErrorLogging();
 
 export function checkForUpdates(manual: boolean): Promise<UpdateCheckResult> {
   return invoke("update_check", { manual });
@@ -68,7 +92,7 @@ export async function getUpdateSettings(): Promise<UpdateSettings> {
     logUpdateSettings("get:success", settings);
     return settings;
   } catch (error) {
-    logUpdateSettings("get:error", error);
+    console.error("[update:settings:get:error]", error);
     throw error;
   }
 }
@@ -93,7 +117,7 @@ export async function saveUpdateSettings(settings: UpdateSettings): Promise<Upda
     logUpdateSettings("save:success", saved);
     return saved;
   } catch (error) {
-    logUpdateSettings("save:error", error);
+    console.error("[update:settings:save:error]", error);
     throw error;
   }
 }
