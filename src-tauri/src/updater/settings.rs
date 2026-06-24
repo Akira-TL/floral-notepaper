@@ -1,4 +1,4 @@
-use super::{types::*, UpdatePaths};
+use super::{debug_log, types::*, UpdatePaths};
 pub use crate::json_io::write_json_atomic;
 use crate::services::notes::AppError;
 use chrono::{DateTime, Utc};
@@ -47,6 +47,16 @@ impl StoredUpdateSettings {
         existing: &StoredUpdateSettings,
         settings: UpdateSettingsDto,
     ) -> Self {
+        debug_log!(
+            "settings",
+            "merge user settings incoming auto_check={} auto_download={} interval={} channel={:?} allow_prerelease={} existing_last_auto_check_at={:?}",
+            settings.auto_check,
+            settings.auto_download,
+            settings.check_interval_hours,
+            settings.channel,
+            settings.allow_prerelease,
+            existing.last_auto_check_at
+        );
         let mut next = Self::from_dto(settings);
         next.last_auto_check_at = existing.last_auto_check_at;
         next
@@ -89,18 +99,46 @@ impl Default for StoredUpdateSettings {
 
 pub fn load(paths: &UpdatePaths) -> Result<StoredUpdateSettings, AppError> {
     let path = paths.settings_path();
+    debug_log!("settings", "load start path={}", path.display());
     if !path.exists() {
+        debug_log!("settings", "settings file missing; creating default");
         let settings = StoredUpdateSettings::default();
         save(paths, &settings)?;
         return Ok(settings);
     }
 
-    match serde_json::from_str::<StoredUpdateSettings>(&fs::read_to_string(&path)?) {
+    let raw = fs::read_to_string(&path)?;
+    debug_log!(
+        "settings",
+        "read settings file bytes={} first_120={:?}",
+        raw.len(),
+        raw.chars().take(120).collect::<String>()
+    );
+
+    match serde_json::from_str::<StoredUpdateSettings>(&raw) {
         Ok(mut settings) => {
+            let original_interval = settings.check_interval_hours;
             settings.check_interval_hours = normalize_check_interval(settings.check_interval_hours);
+            debug_log!(
+                "settings",
+                "load success auto_check={} auto_download={} interval={} normalized_interval={} channel={:?} allow_prerelease={} last_auto_check_at={:?}",
+                settings.auto_check,
+                settings.auto_download,
+                original_interval,
+                settings.check_interval_hours,
+                settings.channel,
+                settings.allow_prerelease,
+                settings.last_auto_check_at
+            );
             Ok(settings)
         }
-        Err(_error) => {
+        Err(error) => {
+            debug_log!(
+                "settings",
+                "load parse failed path={} error={}; renaming corrupt file and writing defaults",
+                path.display(),
+                error
+            );
             rename_corrupt_file(&path, "settings")?;
             let settings = StoredUpdateSettings::default();
             save(paths, &settings)?;
@@ -110,20 +148,42 @@ pub fn load(paths: &UpdatePaths) -> Result<StoredUpdateSettings, AppError> {
 }
 
 pub fn save(paths: &UpdatePaths, settings: &StoredUpdateSettings) -> Result<(), AppError> {
-    write_json_atomic(&paths.settings_path(), settings)
+    let path = paths.settings_path();
+    debug_log!(
+        "settings",
+        "save start path={} auto_check={} auto_download={} interval={} channel={:?} allow_prerelease={} last_auto_check_at={:?}",
+        path.display(),
+        settings.auto_check,
+        settings.auto_download,
+        settings.check_interval_hours,
+        settings.channel,
+        settings.allow_prerelease,
+        settings.last_auto_check_at
+    );
+    let result = write_json_atomic(&path, settings);
+    match &result {
+        Ok(()) => debug_log!("settings", "save success path={}", path.display()),
+        Err(error) => debug_log!("settings", "save failed path={} error={:?}", path.display(), error),
+    }
+    result
 }
 
 pub fn rename_corrupt_file(path: &Path, stem: &str) -> Result<(), AppError> {
     if !path.exists() {
         return Ok(());
     }
-
     let timestamp = Utc::now().format("%Y%m%d%H%M%S");
     let corrupt_name = format!("{stem}.corrupt-{timestamp}.json");
     let corrupt_path = path
         .parent()
         .map(|parent| parent.join(&corrupt_name))
         .unwrap_or_else(|| PathBuf::from(corrupt_name));
+    debug_log!(
+        "settings",
+        "rename corrupt file from={} to={}",
+        path.display(),
+        corrupt_path.display()
+    );
     fs::rename(path, corrupt_path)?;
     Ok(())
 }
@@ -239,7 +299,7 @@ mod tests {
         assert!(paths
             .root_dir()
             .read_dir()
-            .expect("read updates dir")
+            .expect("read update dir")
             .any(|entry| entry
                 .expect("entry")
                 .file_name()
