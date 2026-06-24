@@ -88,6 +88,14 @@ pub struct AppConfig {
     pub toggle_visibility_shortcut: String,
     #[serde(default = "default_open_at_cursor")]
     pub open_at_cursor: bool,
+    #[serde(default)]
+    pub quick_note_rules_enabled: bool,
+    #[serde(default)]
+    pub suppress_quick_note_in_fullscreen: bool,
+    #[serde(default)]
+    pub quick_note_app_blacklist: Vec<String>,
+    #[serde(default)]
+    pub quick_note_app_whitelist: Vec<String>,
     // Legacy fields — read from old config, never written back
     #[serde(default, skip_serializing)]
     pub notes_dir: Option<String>,
@@ -1083,6 +1091,10 @@ impl NoteStore {
             surface_height: None,
             toggle_visibility_shortcut: default_toggle_visibility_shortcut(),
             open_at_cursor: default_open_at_cursor(),
+            quick_note_rules_enabled: false,
+            suppress_quick_note_in_fullscreen: false,
+            quick_note_app_blacklist: Vec::new(),
+            quick_note_app_whitelist: Vec::new(),
             notes_dir: None,
             last_known_base_dir: None,
         }
