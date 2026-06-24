@@ -163,8 +163,8 @@ export async function saveUpdateSettings(settings: UpdateSettings): Promise<Upda
       await invoke<UpdateSettings>("update_settings_save", { settings: payload }),
     );
     logUpdateSettings("save:success", saved);
-    logUpdateSettings("save:return-ui-state", normalizedSettings);
-    return normalizedSettings;
+    logUpdateSettings("save:return-input-state", settings);
+    return settings;
   } catch (error) {
     console.error("[update:settings:save:error]", error);
     throw error;
