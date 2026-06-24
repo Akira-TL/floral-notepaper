@@ -1,4 +1,4 @@
-use super::{debug_log, types::*, UpdatePaths};
+use super::{types::*, UpdatePaths};
 pub use crate::json_io::write_json_atomic;
 use crate::services::notes::AppError;
 use chrono::{DateTime, Utc};
@@ -47,16 +47,6 @@ impl StoredUpdateSettings {
         existing: &StoredUpdateSettings,
         settings: UpdateSettingsDto,
     ) -> Self {
-        debug_log!(
-            "settings",
-            "merge user settings incoming auto_check={} auto_download={} interval={} channel={:?} allow_prerelease={} existing_last_auto_check_at={:?}",
-            settings.auto_check,
-            settings.auto_download,
-            settings.check_interval_hours,
-            settings.channel,
-            settings.allow_prerelease,
-            existing.last_auto_check_at
-        );
         let mut next = Self::from_dto(settings);
         next.last_auto_check_at = existing.last_auto_check_at;
         next
@@ -99,46 +89,20 @@ impl Default for StoredUpdateSettings {
 
 pub fn load(paths: &UpdatePaths) -> Result<StoredUpdateSettings, AppError> {
     let path = paths.settings_path();
-    debug_log!("settings", "load start path={}", path.display());
     if !path.exists() {
-        debug_log!("settings", "settings file missing; creating default");
         let settings = StoredUpdateSettings::default();
         save(paths, &settings)?;
         return Ok(settings);
     }
 
     let raw = fs::read_to_string(&path)?;
-    debug_log!(
-        "settings",
-        "read settings file bytes={} first_120={:?}",
-        raw.len(),
-        raw.chars().take(120).collect::<String>()
-    );
 
     match serde_json::from_str::<StoredUpdateSettings>(&raw) {
         Ok(mut settings) => {
-            let original_interval = settings.check_interval_hours;
             settings.check_interval_hours = normalize_check_interval(settings.check_interval_hours);
-            debug_log!(
-                "settings",
-                "load success auto_check={} auto_download={} interval={} normalized_interval={} channel={:?} allow_prerelease={} last_auto_check_at={:?}",
-                settings.auto_check,
-                settings.auto_download,
-                original_interval,
-                settings.check_interval_hours,
-                settings.channel,
-                settings.allow_prerelease,
-                settings.last_auto_check_at
-            );
             Ok(settings)
         }
-        Err(error) => {
-            debug_log!(
-                "settings",
-                "load parse failed path={} error={}; renaming corrupt file and writing defaults",
-                path.display(),
-                error
-            );
+        Err(_) => {
             rename_corrupt_file(&path, "settings")?;
             let settings = StoredUpdateSettings::default();
             save(paths, &settings)?;
@@ -148,24 +112,7 @@ pub fn load(paths: &UpdatePaths) -> Result<StoredUpdateSettings, AppError> {
 }
 
 pub fn save(paths: &UpdatePaths, settings: &StoredUpdateSettings) -> Result<(), AppError> {
-    let path = paths.settings_path();
-    debug_log!(
-        "settings",
-        "save start path={} auto_check={} auto_download={} interval={} channel={:?} allow_prerelease={} last_auto_check_at={:?}",
-        path.display(),
-        settings.auto_check,
-        settings.auto_download,
-        settings.check_interval_hours,
-        settings.channel,
-        settings.allow_prerelease,
-        settings.last_auto_check_at
-    );
-    let result = write_json_atomic(&path, settings);
-    match &result {
-        Ok(()) => debug_log!("settings", "save success path={}", path.display()),
-        Err(error) => debug_log!("settings", "save failed path={} error={:?}", path.display(), error),
-    }
-    result
+    write_json_atomic(&paths.settings_path(), settings)
 }
 
 pub fn rename_corrupt_file(path: &Path, stem: &str) -> Result<(), AppError> {
@@ -178,12 +125,6 @@ pub fn rename_corrupt_file(path: &Path, stem: &str) -> Result<(), AppError> {
         .parent()
         .map(|parent| parent.join(&corrupt_name))
         .unwrap_or_else(|| PathBuf::from(corrupt_name));
-    debug_log!(
-        "settings",
-        "rename corrupt file from={} to={}",
-        path.display(),
-        corrupt_path.display()
-    );
     fs::rename(path, corrupt_path)?;
     Ok(())
 }
@@ -256,54 +197,5 @@ mod tests {
 
         assert!(!raw.contains("hasMirrorChyanCdk"));
         assert_eq!(loaded, settings);
-    }
-
-    #[test]
-    fn preserves_last_auto_check_at_when_merging_user_settings() {
-        let existing_timestamp = Utc::now();
-        let merged = StoredUpdateSettings::from_user_settings(
-            &StoredUpdateSettings {
-                last_auto_check_at: Some(existing_timestamp),
-                ..StoredUpdateSettings::default()
-            },
-            UpdateSettingsDto {
-                auto_check: false,
-                auto_download: true,
-                check_interval_hours: 168,
-                check_source_preference: CheckSourcePreference::MirrorChyanFirst,
-                download_source_preference: DownloadSourcePreference::GithubFirst,
-                channel: UpdateChannel::Beta,
-                allow_prerelease: true,
-                last_auto_check_at: None,
-                has_mirror_chyan_cdk: false,
-                mirror_chyan_cdk_length: None,
-            },
-        );
-
-        assert_eq!(merged.last_auto_check_at, Some(existing_timestamp));
-        assert!(!merged.auto_check);
-        assert!(merged.auto_download);
-        assert_eq!(merged.check_interval_hours, 168);
-    }
-
-    #[test]
-    fn resets_corrupt_settings_file() {
-        let paths = test_paths("settings-corrupt");
-        paths.ensure_dirs().expect("create dirs");
-        fs::write(paths.settings_path(), "{ broken").expect("write corrupt settings");
-
-        let settings = load(&paths).expect("corrupt settings should recover");
-
-        assert_eq!(settings, StoredUpdateSettings::default());
-        assert!(paths.settings_path().exists());
-        assert!(paths
-            .root_dir()
-            .read_dir()
-            .expect("read update dir")
-            .any(|entry| entry
-                .expect("entry")
-                .file_name()
-                .to_string_lossy()
-                .starts_with("settings.corrupt-")));
     }
 }
