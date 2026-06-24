@@ -30,7 +30,7 @@ describe("settings api", () => {
   test("gets config through Rust", async () => {
     const config: AppConfig = {
       locale: "zh-CN",
-      dataDir: "D:\\notes",
+      dataDir: "D:/notes",
       globalShortcut: "Ctrl+Space",
       closeToTray: true,
       autostart: false,
@@ -53,7 +53,6 @@ describe("settings api", () => {
       renderHtmlMarkdown: false,
       splitScrollSync: true,
       openAtCursor: true,
-      quickNoteRulesEnabled: false,
       suppressQuickNoteInFullscreen: false,
       quickNoteAppBlacklist: [],
       quickNoteAppWhitelist: [],
@@ -68,7 +67,7 @@ describe("settings api", () => {
   test("saves config through Rust", async () => {
     const config: AppConfig = {
       locale: "zh-CN",
-      dataDir: "D:\\notes",
+      dataDir: "D:/notes",
       globalShortcut: "Alt+Space",
       closeToTray: false,
       autostart: true,
@@ -91,7 +90,6 @@ describe("settings api", () => {
       renderHtmlMarkdown: false,
       splitScrollSync: true,
       openAtCursor: true,
-      quickNoteRulesEnabled: true,
       suppressQuickNoteInFullscreen: true,
       quickNoteAppBlacklist: ["cs2.exe"],
       quickNoteAppWhitelist: ["minecraft.exe"],
@@ -107,7 +105,7 @@ describe("settings api", () => {
     const result = {
       available: false,
       conflictType: "system",
-      message: "与 macOS 系统快捷键冲突",
+      message: "shortcut conflict",
     };
     mockedInvoke.mockResolvedValue(result);
 
@@ -126,9 +124,9 @@ describe("settings api", () => {
   });
 
   test("chooses a data directory through the folder picker", async () => {
-    mockedOpen.mockResolvedValue("D:\\notes");
+    mockedOpen.mockResolvedValue("D:/notes");
 
-    await expect(chooseDataDirectory()).resolves.toBe("D:\\notes");
+    await expect(chooseDataDirectory()).resolves.toBe("D:/notes");
 
     expect(open).toHaveBeenCalledWith({
       directory: true,
