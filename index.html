@@ -28,6 +28,17 @@
         padding: 0;
         overflow: hidden;
       }
+
+      #root aside[class*="w-[360px]"][class*="h-full"][class*="flex"][class*="flex-col"] {
+        min-height: 0;
+      }
+
+      #root aside[class*="w-[360px]"][class*="h-full"][class*="flex"][class*="flex-col"]
+        > div[class*="overflow-y-auto"] {
+        min-height: 0;
+        overflow-anchor: none;
+        overscroll-behavior: contain;
+      }
     </style>
   </head>
 
