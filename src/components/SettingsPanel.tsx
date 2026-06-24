@@ -20,6 +20,7 @@ import { useShortcutRecorder } from "../features/settings/useShortcutRecorder";
 import { DEFAULT_TILE_COLOR, normalizeTileColor } from "../features/settings/tileColor";
 import { applyTheme, watchSystemTheme } from "../features/settings/theme";
 import { LOCALE_OPTIONS } from "../locales/locale-whitelist";
+import { QuickNoteRulesSection } from "./QuickNoteRulesSection";
 import { SlidingButtonGroup } from "./SlidingButtonGroup";
 
 const HARMONY_FONT_LICENSE_URL = new URL("../assets/fonts/LICENSE_Fonts", import.meta.url).href;
@@ -252,6 +253,8 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
           </div>
         </section>
 
+        <QuickNoteRulesSection />
+
         <section className="space-y-2">
           <label className="block text-[11px] font-body text-ink-faint">
             {t("settings.fontSize.editor", { defaultValue: "编辑器字号" })}
@@ -294,7 +297,7 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
 
         <section className="space-y-2">
           <label className="block text-[11px] font-body text-ink-faint">
-            {t("settings.tabIndentSize", { defaultValue: "Tab 缩进宽��" })}
+            {t("settings.tabIndentSize", { defaultValue: "Tab 缩进宽度" })}
           </label>
           <div className="flex items-center gap-3 h-9 rounded-lg px-2.5 bg-paper-warm/45 border border-paper-deep/25">
             <input

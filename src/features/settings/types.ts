@@ -5,6 +5,13 @@ export type ThemeOption = "light" | "dark" | "system";
 export type TileColorMode = "system" | "custom";
 export type BackgroundFit = "cover" | "contain" | "repeat";
 
+export interface ForegroundAppInfo {
+  exeName: string;
+  exePath: string;
+  windowTitle: string;
+  isFullscreen: boolean;
+}
+
 export interface AppConfig {
   locale: string;
   dataDir: string;
@@ -32,6 +39,9 @@ export interface AppConfig {
   surfaceHeight?: number;
   toggleVisibilityShortcut: string;
   openAtCursor: boolean;
+  suppressQuickNoteInFullscreen: boolean;
+  quickNoteAppBlacklist: string[];
+  quickNoteAppWhitelist: string[];
   backgroundImagePath?: string;
   backgroundFit?: BackgroundFit;
   backgroundDim?: number;
