@@ -10,7 +10,6 @@ import {
 } from "../features/quickNoteRules/api";
 
 const DEFAULT_RULES: QuickNoteRules = {
-  enabled: false,
   suppressQuickNoteInFullscreen: false,
   appBlacklist: [],
   appWhitelist: [],
@@ -20,6 +19,7 @@ function normalizeRules(value: QuickNoteRules | null | undefined): QuickNoteRule
   return {
     ...DEFAULT_RULES,
     ...value,
+    suppressQuickNoteInFullscreen: Boolean(value?.suppressQuickNoteInFullscreen),
     appBlacklist: Array.isArray(value?.appBlacklist) ? value.appBlacklist : [],
     appWhitelist: Array.isArray(value?.appWhitelist) ? value.appWhitelist : [],
   };
@@ -61,47 +61,20 @@ export function QuickNoteRulesSection() {
     }
   };
 
-  const rulesDisabled = loading || saving || !rules.enabled;
+  const disabled = loading || saving;
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <label className="block text-[11px] font-body text-ink-faint">
-            {t("settings.quickNoteRules.title", { defaultValue: "快速记录响应规则" })}
-          </label>
-          <p className="mt-1 text-[10px] text-ink-ghost leading-relaxed">
-            {t("settings.quickNoteRules.description", {
-              defaultValue:
-                "关闭后不应用全屏保护、允许列表和排除列表，保持原有快速记录行为。",
-            })}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading || saving}
-          className="h-7 px-2.5 rounded-lg border border-paper-deep/45 text-[10px] text-ink-faint hover:text-bamboo hover:bg-bamboo-mist/50 disabled:opacity-50 transition-colors cursor-pointer"
-        >
-          {t("common.refresh", { defaultValue: "刷新" })}
-        </button>
-      </div>
-
-      <ToggleRow
-        label={t("settings.quickNoteRules.enabled", {
-          defaultValue: "启用快速记录响应规则",
-        })}
-        checked={rules.enabled}
-        disabled={loading || saving}
-        onChange={(checked) => void persist({ ...rules, enabled: checked })}
-      />
+      <label className="block text-[11px] font-body text-ink-faint">
+        {t("settings.quickNoteRules.title", { defaultValue: "快速记录响应规则" })}
+      </label>
 
       <ToggleRow
         label={t("settings.quickNoteRules.suppressFullscreen", {
           defaultValue: "全屏应用中禁用快速记录",
         })}
         checked={rules.suppressQuickNoteInFullscreen}
-        disabled={rulesDisabled}
+        disabled={disabled}
         onChange={(checked) => void persist({ ...rules, suppressQuickNoteInFullscreen: checked })}
       />
 
@@ -114,7 +87,7 @@ export function QuickNoteRulesSection() {
         submitTitle={t("settings.quickNoteRules.submitAdd", { defaultValue: "添加" })}
         removeLabel={t("common.remove", { defaultValue: "移除" })}
         apps={rules.appWhitelist}
-        disabled={rulesDisabled}
+        disabled={disabled}
         onAdd={(exeName) => void persist(addAppToWhitelist(rules, exeName))}
         onRemove={(exeName) => void persist(removeAppFromRules(rules, exeName))}
       />
@@ -127,7 +100,7 @@ export function QuickNoteRulesSection() {
         submitTitle={t("settings.quickNoteRules.submitAdd", { defaultValue: "添加" })}
         removeLabel={t("common.remove", { defaultValue: "移除" })}
         apps={rules.appBlacklist}
-        disabled={rulesDisabled}
+        disabled={disabled}
         onAdd={(exeName) => void persist(addAppToBlacklist(rules, exeName))}
         onRemove={(exeName) => void persist(removeAppFromRules(rules, exeName))}
       />
