@@ -1,10 +1,9 @@
 use crate::{
     desktop::{self, ShortcutKey, ShortcutSpec},
-    json_io::write_json_atomic,
-    services::notes::{default_store, AppError},
+    services::notes::{default_store, AppConfig, AppError},
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeSet, fs, path::PathBuf};
+use std::collections::BTreeSet;
 
 #[cfg(desktop)]
 use std::{
@@ -15,8 +14,6 @@ use std::{
 #[cfg(desktop)]
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
 
-const RULES_FILE_NAME: &str = "quick-note-rules.json";
-
 #[cfg(desktop)]
 const SHORTCUT_GUARD_INTERVAL_MS: u64 = 250;
 #[cfg(desktop)]
@@ -25,7 +22,7 @@ static SHORTCUT_GUARD_STARTED: AtomicBool = AtomicBool::new(false);
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct QuickNoteRules {
-    #[serde(default = "default_suppress_quick_note_in_fullscreen")]
+    #[serde(default)]
     pub suppress_quick_note_in_fullscreen: bool,
     #[serde(default)]
     pub app_blacklist: Vec<String>,
@@ -45,36 +42,41 @@ pub struct ForegroundAppInfo {
 impl Default for QuickNoteRules {
     fn default() -> Self {
         Self {
-            suppress_quick_note_in_fullscreen: default_suppress_quick_note_in_fullscreen(),
+            suppress_quick_note_in_fullscreen: false,
             app_blacklist: Vec::new(),
             app_whitelist: Vec::new(),
         }
     }
 }
 
-fn default_suppress_quick_note_in_fullscreen() -> bool {
-    true
-}
+impl QuickNoteRules {
+    fn from_config(config: &AppConfig) -> Self {
+        normalize_rules(Self {
+            suppress_quick_note_in_fullscreen: config.suppress_quick_note_in_fullscreen,
+            app_blacklist: config.quick_note_app_blacklist.clone(),
+            app_whitelist: config.quick_note_app_whitelist.clone(),
+        })
+    }
 
-fn rules_path() -> Result<PathBuf, AppError> {
-    Ok(default_store()?.config_dir().join(RULES_FILE_NAME))
+    fn apply_to_config(&self, config: &mut AppConfig) {
+        let rules = normalize_rules(self.clone());
+        config.suppress_quick_note_in_fullscreen = rules.suppress_quick_note_in_fullscreen;
+        config.quick_note_app_blacklist = rules.app_blacklist;
+        config.quick_note_app_whitelist = rules.app_whitelist;
+    }
 }
 
 pub fn load_rules() -> Result<QuickNoteRules, AppError> {
-    let path = rules_path()?;
-    if !path.exists() {
-        let rules = QuickNoteRules::default();
-        return save_rules(rules);
-    }
-
-    let content = fs::read_to_string(&path)?;
-    let rules: QuickNoteRules = serde_json::from_str(&content)?;
-    Ok(normalize_rules(rules))
+    let config = default_store()?.load_config()?;
+    Ok(QuickNoteRules::from_config(&config))
 }
 
 pub fn save_rules(rules: QuickNoteRules) -> Result<QuickNoteRules, AppError> {
+    let store = default_store()?;
+    let mut config = store.load_config()?;
     let rules = normalize_rules(rules);
-    write_json_atomic(&rules_path()?, &rules)?;
+    rules.apply_to_config(&mut config);
+    store.save_config(config)?;
     Ok(rules)
 }
 
@@ -86,7 +88,10 @@ pub fn should_suppress_quick_note() -> bool {
     let Ok(rules) = load_rules() else {
         return false;
     };
+    should_suppress_quick_note_for_rules(&rules)
+}
 
+fn should_suppress_quick_note_for_rules(rules: &QuickNoteRules) -> bool {
     let Some(app) = platform::foreground_app_info() else {
         return false;
     };
@@ -139,7 +144,8 @@ fn apply_shortcut_guard(app: &tauri::AppHandle) {
     };
 
     let manager = app.global_shortcut();
-    let should_suppress = should_suppress_quick_note();
+    let rules = QuickNoteRules::from_config(&config);
+    let should_suppress = should_suppress_quick_note_for_rules(&rules);
     let registered = manager.is_registered(shortcut);
 
     if should_suppress {

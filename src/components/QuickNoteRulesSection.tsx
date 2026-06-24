@@ -1,86 +1,55 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   addAppToBlacklist,
   addAppToWhitelist,
-  getQuickNoteRules,
   removeAppFromRules,
-  saveQuickNoteRules,
   type QuickNoteRules,
 } from "../features/quickNoteRules/api";
+import type { AppConfig } from "../features/settings/types";
 
-const DEFAULT_RULES: QuickNoteRules = {
-  suppressQuickNoteInFullscreen: true,
-  appBlacklist: [],
-  appWhitelist: [],
-};
+interface QuickNoteRulesSectionProps {
+  config: AppConfig;
+  onChange: (config: AppConfig) => void;
+}
 
-export function QuickNoteRulesSection() {
+function rulesFromConfig(config: AppConfig): QuickNoteRules {
+  return {
+    suppressQuickNoteInFullscreen: Boolean(config.suppressQuickNoteInFullscreen),
+    appBlacklist: Array.isArray(config.quickNoteAppBlacklist) ? config.quickNoteAppBlacklist : [],
+    appWhitelist: Array.isArray(config.quickNoteAppWhitelist) ? config.quickNoteAppWhitelist : [],
+  };
+}
+
+function applyRulesToConfig(config: AppConfig, rules: QuickNoteRules): AppConfig {
+  return {
+    ...config,
+    suppressQuickNoteInFullscreen: rules.suppressQuickNoteInFullscreen,
+    quickNoteAppBlacklist: rules.appBlacklist,
+    quickNoteAppWhitelist: rules.appWhitelist,
+  };
+}
+
+export function QuickNoteRulesSection({ config, onChange }: QuickNoteRulesSectionProps) {
   const { t } = useTranslation();
-  const [rules, setRules] = useState<QuickNoteRules>(DEFAULT_RULES);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const rules = rulesFromConfig(config);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setRules(await getQuickNoteRules());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const persist = async (nextRules: QuickNoteRules) => {
-    setSaving(true);
-    setError(null);
-    try {
-      const saved = await saveQuickNoteRules(nextRules);
-      setRules(saved);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSaving(false);
-    }
+  const updateRules = (nextRules: QuickNoteRules) => {
+    onChange(applyRulesToConfig(config, nextRules));
   };
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <label className="block text-[11px] font-body text-ink-faint">
-            {t("settings.quickNoteRules.title", { defaultValue: "快速记录响应规则" })}
-          </label>
-          <p className="mt-1 text-[10px] text-ink-ghost leading-relaxed">
-            {t("settings.quickNoteRules.description", {
-              defaultValue: "控制全屏应用、白名单和黑名单中是否响应快速记录快捷键。",
-            })}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading || saving}
-          className="h-7 px-2.5 rounded-lg border border-paper-deep/45 text-[10px] text-ink-faint hover:text-bamboo hover:bg-bamboo-mist/50 disabled:opacity-50 transition-colors cursor-pointer"
-        >
-          {t("common.refresh", { defaultValue: "刷新" })}
-        </button>
-      </div>
+      <label className="block text-[11px] font-body text-ink-faint">
+        {t("settings.quickNoteRules.title", { defaultValue: "快速记录响应规则" })}
+      </label>
 
       <ToggleRow
         label={t("settings.quickNoteRules.suppressFullscreen", {
           defaultValue: "全屏应用中禁用快速记录",
         })}
         checked={rules.suppressQuickNoteInFullscreen}
-        disabled={loading || saving}
-        onChange={(checked) => void persist({ ...rules, suppressQuickNoteInFullscreen: checked })}
+        onChange={(checked) => updateRules({ ...rules, suppressQuickNoteInFullscreen: checked })}
       />
 
       <RuleList
@@ -92,9 +61,8 @@ export function QuickNoteRulesSection() {
         submitTitle={t("settings.quickNoteRules.submitAdd", { defaultValue: "添加" })}
         removeLabel={t("common.remove", { defaultValue: "移除" })}
         apps={rules.appWhitelist}
-        disabled={loading || saving}
-        onAdd={(exeName) => void persist(addAppToWhitelist(rules, exeName))}
-        onRemove={(exeName) => void persist(removeAppFromRules(rules, exeName))}
+        onAdd={(exeName) => updateRules(addAppToWhitelist(rules, exeName))}
+        onRemove={(exeName) => updateRules(removeAppFromRules(rules, exeName))}
       />
       <RuleList
         title={t("settings.quickNoteRules.blacklist", { defaultValue: "排除快速记录的应用" })}
@@ -105,12 +73,9 @@ export function QuickNoteRulesSection() {
         submitTitle={t("settings.quickNoteRules.submitAdd", { defaultValue: "添加" })}
         removeLabel={t("common.remove", { defaultValue: "移除" })}
         apps={rules.appBlacklist}
-        disabled={loading || saving}
-        onAdd={(exeName) => void persist(addAppToBlacklist(rules, exeName))}
-        onRemove={(exeName) => void persist(removeAppFromRules(rules, exeName))}
+        onAdd={(exeName) => updateRules(addAppToBlacklist(rules, exeName))}
+        onRemove={(exeName) => updateRules(removeAppFromRules(rules, exeName))}
       />
-
-      {error && <p className="text-[10px] text-red-400 leading-relaxed">{error}</p>}
     </section>
   );
 }
@@ -126,7 +91,6 @@ function RuleList({
   submitTitle,
   removeLabel,
   apps,
-  disabled,
   onAdd,
   onRemove,
 }: {
@@ -136,14 +100,13 @@ function RuleList({
   submitTitle: string;
   removeLabel: string;
   apps: string[];
-  disabled: boolean;
   onAdd: (exeName: string) => void;
   onRemove: (exeName: string) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const normalizedDraft = useMemo(() => normalizeExeName(draft), [draft]);
-  const canSubmit = normalizedDraft.length > 0 && !disabled;
+  const canSubmit = normalizedDraft.length > 0;
 
   const resetAdding = () => {
     setDraft("");
@@ -170,9 +133,8 @@ function RuleList({
             </span>
             <button
               type="button"
-              disabled={disabled}
               onClick={() => onRemove(exeName)}
-              className="h-6 px-2 rounded-md text-[10px] text-ink-ghost hover:text-red-400 hover:bg-red-400/10 disabled:opacity-45 transition-colors cursor-pointer"
+              className="h-6 px-2 rounded-md text-[10px] text-ink-ghost hover:text-red-400 hover:bg-red-400/10 transition-colors cursor-pointer"
             >
               {removeLabel}
             </button>
@@ -236,9 +198,8 @@ function RuleList({
         ) : (
           <button
             type="button"
-            disabled={disabled}
             onClick={() => setAdding(true)}
-            className="flex h-9 w-full items-center px-3 text-left text-[10px] text-ink-ghost transition-colors hover:bg-bamboo-mist/45 hover:text-bamboo active:bg-bamboo-mist/70 disabled:opacity-45 disabled:hover:bg-transparent disabled:hover:text-ink-ghost cursor-pointer"
+            className="flex h-9 w-full items-center px-3 text-left text-[10px] text-ink-ghost transition-colors hover:bg-bamboo-mist/45 hover:text-bamboo active:bg-bamboo-mist/70 cursor-pointer"
           >
             {addLabel}
           </button>
@@ -251,27 +212,32 @@ function RuleList({
 function ToggleRow({
   label,
   checked,
-  disabled,
   onChange,
 }: {
   label: string;
   checked: boolean;
-  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 text-[11px] text-ink-faint cursor-pointer">
-      <span>{label}</span>
+    <label className="flex items-center justify-between h-9 rounded-lg px-2.5 bg-paper-warm/45 border border-paper-deep/25 cursor-pointer">
+      <span className="text-[12px] text-ink-soft">{label}</span>
       <input
         type="checkbox"
         checked={checked}
-        disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
-        className="sr-only peer"
+        className="sr-only"
       />
-      <span className="relative w-9 h-5 rounded-full bg-paper-deep/50 transition-colors peer-checked:bg-bamboo peer-disabled:opacity-50">
-        <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-cloud shadow-sm transition-transform peer-checked:translate-x-4" />
-      </span>
+      <div
+        className={`relative w-8 h-[18px] rounded-full transition-colors duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          checked ? "bg-bamboo" : "bg-paper-deep/50"
+        }`}
+      >
+        <div
+          className={`absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)] transition-transform duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            checked ? "translate-x-[14px]" : "translate-x-0"
+          }`}
+        />
+      </div>
     </label>
   );
 }
