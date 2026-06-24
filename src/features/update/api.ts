@@ -9,6 +9,24 @@ import type {
   UpdateState,
 } from "./types";
 
+function stringifyForLog(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function logUpdateSettings(label: string, value?: unknown): void {
+  if (import.meta.env.DEV) {
+    if (value === undefined) {
+      console.debug(`[update:settings:${label}]`);
+      return;
+    }
+    console.debug(`[update:settings:${label}]`, value, stringifyForLog(value));
+  }
+}
+
 export function checkForUpdates(manual: boolean): Promise<UpdateCheckResult> {
   return invoke("update_check", { manual });
 }
@@ -43,23 +61,41 @@ export function getUpdateStatus(): Promise<UpdateState> {
   return invoke("update_status");
 }
 
-export function getUpdateSettings(): Promise<UpdateSettings> {
-  return invoke("update_settings_get");
+export async function getUpdateSettings(): Promise<UpdateSettings> {
+  logUpdateSettings("get:start");
+  try {
+    const settings = await invoke<UpdateSettings>("update_settings_get");
+    logUpdateSettings("get:success", settings);
+    return settings;
+  } catch (error) {
+    logUpdateSettings("get:error", error);
+    throw error;
+  }
 }
 
-export function saveUpdateSettings(settings: UpdateSettings): Promise<UpdateSettings> {
-  return invoke("update_settings_save", {
-    settings: {
-      autoCheck: Boolean(settings.autoCheck),
-      autoDownload: Boolean(settings.autoDownload),
-      checkIntervalHours: Number(settings.checkIntervalHours),
-      checkSourcePreference: settings.checkSourcePreference,
-      downloadSourcePreference: settings.downloadSourcePreference,
-      channel: settings.channel,
-      allowPrerelease: Boolean(settings.allowPrerelease),
-      lastAutoCheckAt: settings.lastAutoCheckAt ?? null,
-    },
-  });
+export async function saveUpdateSettings(settings: UpdateSettings): Promise<UpdateSettings> {
+  const payload = {
+    autoCheck: Boolean(settings.autoCheck),
+    autoDownload: Boolean(settings.autoDownload),
+    checkIntervalHours: Number(settings.checkIntervalHours),
+    checkSourcePreference: settings.checkSourcePreference,
+    downloadSourcePreference: settings.downloadSourcePreference,
+    channel: settings.channel,
+    allowPrerelease: Boolean(settings.allowPrerelease),
+    lastAutoCheckAt: settings.lastAutoCheckAt ?? null,
+  };
+
+  logUpdateSettings("save:input", settings);
+  logUpdateSettings("save:payload", payload);
+
+  try {
+    const saved = await invoke<UpdateSettings>("update_settings_save", { settings: payload });
+    logUpdateSettings("save:success", saved);
+    return saved;
+  } catch (error) {
+    logUpdateSettings("save:error", error);
+    throw error;
+  }
 }
 
 export function setMirrorChyanCdk(cdk: string): Promise<void> {
