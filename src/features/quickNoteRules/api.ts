@@ -1,7 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
 export interface QuickNoteRules {
-  enabled: boolean;
   suppressQuickNoteInFullscreen: boolean;
   appBlacklist: string[];
   appWhitelist: string[];
