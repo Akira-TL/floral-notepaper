@@ -1,17 +1,7 @@
-import { invoke } from "@tauri-apps/api/core";
-
 export interface QuickNoteRules {
   suppressQuickNoteInFullscreen: boolean;
   appBlacklist: string[];
   appWhitelist: string[];
-}
-
-export function getQuickNoteRules(): Promise<QuickNoteRules> {
-  return invoke("quick_note_rules_get");
-}
-
-export function saveQuickNoteRules(rules: QuickNoteRules): Promise<QuickNoteRules> {
-  return invoke("quick_note_rules_save", { rules });
 }
 
 export function addAppToWhitelist(rules: QuickNoteRules, exeName: string): QuickNoteRules {
