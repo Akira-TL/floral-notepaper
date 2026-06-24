@@ -255,27 +255,13 @@ function ToggleRow({
   disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
-  const trackClassName = [
-    "relative w-9 h-5 rounded-full transition-colors",
-    checked ? "bg-bamboo" : "bg-paper-deep/50",
-    disabled ? "opacity-50" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const thumbClassName = [
-    "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-cloud shadow-sm transition-transform",
-    checked ? "translate-x-4" : "translate-x-0",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
   return (
     <label
-      className={`flex items-center justify-between gap-3 text-[11px] text-ink-faint ${
-        disabled ? "cursor-not-allowed opacity-75" : "cursor-pointer"
+      className={`flex items-center justify-between h-9 rounded-lg px-2.5 bg-paper-warm/45 border border-paper-deep/25 ${
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
       }`}
     >
-      <span>{label}</span>
+      <span className="text-[12px] text-ink-soft">{label}</span>
       <input
         type="checkbox"
         checked={checked}
@@ -283,9 +269,17 @@ function ToggleRow({
         onChange={(event) => onChange(event.target.checked)}
         className="sr-only"
       />
-      <span className={trackClassName}>
-        <span className={thumbClassName} />
-      </span>
+      <div
+        className={`relative w-8 h-[18px] rounded-full transition-colors duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          checked ? "bg-bamboo" : "bg-paper-deep/50"
+        }`}
+      >
+        <div
+          className={`absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)] transition-transform duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            checked ? "translate-x-[14px]" : "translate-x-0"
+          }`}
+        />
+      </div>
     </label>
   );
 }
