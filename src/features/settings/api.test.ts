@@ -53,6 +53,9 @@ describe("settings api", () => {
       renderHtmlMarkdown: false,
       splitScrollSync: true,
       openAtCursor: true,
+      suppressQuickNoteInFullscreen: true,
+      quickNoteAppBlacklist: [],
+      quickNoteAppWhitelist: [],
     };
     mockedInvoke.mockResolvedValue(config);
 
@@ -87,6 +90,9 @@ describe("settings api", () => {
       renderHtmlMarkdown: false,
       splitScrollSync: true,
       openAtCursor: true,
+      suppressQuickNoteInFullscreen: true,
+      quickNoteAppBlacklist: ["cs2.exe"],
+      quickNoteAppWhitelist: ["minecraft.exe"],
     };
     mockedInvoke.mockResolvedValue(config);
 
