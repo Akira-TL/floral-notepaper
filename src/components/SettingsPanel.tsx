@@ -253,7 +253,7 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
           </div>
         </section>
 
-        <QuickNoteRulesSection />
+        <QuickNoteRulesSection config={config} onChange={onChange} />
 
         <section className="space-y-2">
           <label className="block text-[11px] font-body text-ink-faint">
