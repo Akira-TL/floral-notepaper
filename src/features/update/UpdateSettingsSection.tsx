@@ -34,19 +34,201 @@ import type {
 
 type BusyAction = "settings" | "checking" | "cdk" | "download" | "cancel" | "install" | null;
 
+type IntervalOption = string;
+
 interface UpdateSettingsSectionProps {
   initialSettings?: UpdateSettings;
   initialStatus?: UpdateState;
   mode?: "full" | "checkOnly" | "settingsOnly";
 }
 
-type IntervalOption = string;
+interface UpdateSettingsControlsProps {
+  settings: UpdateSettings;
+  intervalOptions: Array<{ value: IntervalOption; label: string }>;
+  sourceOptions: Array<{ value: DownloadSourcePreference; label: string }>;
+  cdkInput: string;
+  showCdk: boolean;
+  controlsDisabled: boolean;
+  onSettingsChange: <Key extends keyof UpdateSettings>(key: Key, value: UpdateSettings[Key]) => void;
+  onIntervalChange: (value: IntervalOption) => void;
+  onCdkInputChange: (value: string) => void;
+  onShowCdkChange: (value: boolean) => void;
+  t: ReturnType<typeof useTranslation>["t"];
+}
+
+const UPDATE_SETTINGS_SAVE_DEBOUNCE_MS = 300;
 
 export function UpdateSettingsSection({
   initialSettings,
   initialStatus,
   mode = "full",
 }: UpdateSettingsSectionProps) {
+  if (mode === "settingsOnly") {
+    return <UpdateSettingsOnlySection initialSettings={initialSettings} />;
+  }
+
+  return <UpdatePanel initialSettings={initialSettings} initialStatus={initialStatus} mode={mode} />;
+}
+
+function UpdateSettingsOnlySection({ initialSettings }: { initialSettings?: UpdateSettings }) {
+  const { t } = useTranslation();
+  const [settings, setSettings] = useState<UpdateSettings | null>(initialSettings ?? null);
+  const [notice, setNotice] = useState<UpdateInlineNotice | null>(null);
+  const [cdkInput, setCdkInput] = useState("");
+  const [showCdk, setShowCdk] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSettings = useRef<UpdateSettings | null>(initialSettings ?? null);
+  const cdkSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cdkSavedValue = useRef("");
+  const pendingCdkValue = useRef("");
+
+  useEffect(() => {
+    if (initialSettings) return;
+    let alive = true;
+    getUpdateSettings()
+      .then((loadedSettings) => {
+        if (!alive) return;
+        pendingSettings.current = loadedSettings;
+        setSettings(loadedSettings);
+      })
+      .catch((error) => {
+        if (!alive) return;
+        setNotice({ tone: "error", text: getUpdateErrorMessage(error, t) });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [initialSettings, t]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current && pendingSettings.current) {
+        clearTimeout(saveTimer.current);
+        void saveUpdateSettings(pendingSettings.current).catch(() => {});
+      }
+      if (cdkSaveTimer.current) {
+        clearTimeout(cdkSaveTimer.current);
+      }
+      const pending = pendingCdkValue.current;
+      if (pending && pending !== cdkSavedValue.current) {
+        cdkSavedValue.current = pending;
+        setMirrorChyanCdk(pending).catch(() => {});
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    pendingCdkValue.current = cdkInput.trim();
+  }, [cdkInput]);
+
+  useEffect(() => {
+    const value = cdkInput.trim();
+    if (!value || value === cdkSavedValue.current) return;
+    if (cdkSaveTimer.current) clearTimeout(cdkSaveTimer.current);
+    cdkSaveTimer.current = setTimeout(() => {
+      cdkSavedValue.current = value;
+      setMirrorChyanCdk(value)
+        .then(() => getUpdateSettings())
+        .then((loadedSettings) => {
+          pendingSettings.current = loadedSettings;
+          setSettings(loadedSettings);
+        })
+        .catch((error) => setNotice({ tone: "error", text: getUpdateErrorMessage(error, t) }));
+    }, 600);
+    return () => {
+      if (cdkSaveTimer.current) clearTimeout(cdkSaveTimer.current);
+    };
+  }, [cdkInput, t]);
+
+  useEffect(() => {
+    if (!settings?.hasMirrorChyanCdk) return;
+    let cancelled = false;
+    getMirrorChyanCdk().then((cdk) => {
+      if (cancelled || !cdk) return;
+      setCdkInput(cdk);
+      cdkSavedValue.current = cdk;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [settings?.hasMirrorChyanCdk]);
+
+  const sourceOptions = useSourceOptions(t);
+  const intervalOptions = useIntervalOptions(settings?.checkIntervalHours, t);
+
+  const scheduleSave = (nextSettings: UpdateSettings) => {
+    pendingSettings.current = nextSettings;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      void saveUpdateSettings(nextSettings).catch((error) => {
+        setNotice({ tone: "error", text: getUpdateErrorMessage(error, t) });
+      });
+    }, UPDATE_SETTINGS_SAVE_DEBOUNCE_MS);
+  };
+
+  const updateSettings = <Key extends keyof UpdateSettings>(
+    key: Key,
+    value: UpdateSettings[Key],
+  ) => {
+    if (!settings) return;
+    const nextSettings = { ...settings, [key]: value };
+    setSettings(nextSettings);
+    scheduleSave(nextSettings);
+  };
+
+  const handleIntervalChange = (value: IntervalOption) => {
+    if (!settings) return;
+    const nextSettings = {
+      ...settings,
+      autoCheck: true,
+      checkIntervalHours: Number(value),
+    };
+    setSettings(nextSettings);
+    scheduleSave(nextSettings);
+  };
+
+  return (
+    <section className="space-y-3 pt-2 border-t border-paper-deep/25">
+      <div>
+        <h3 className="text-[11px] font-body text-ink-faint">
+          {t("settings.update.settingsTitle", { defaultValue: "更新设置" })}
+        </h3>
+      </div>
+
+      {settings ? (
+        <UpdateSettingsControls
+          settings={settings}
+          intervalOptions={intervalOptions}
+          sourceOptions={sourceOptions}
+          cdkInput={cdkInput}
+          showCdk={showCdk}
+          controlsDisabled={false}
+          onSettingsChange={updateSettings}
+          onIntervalChange={handleIntervalChange}
+          onCdkInputChange={setCdkInput}
+          onShowCdkChange={setShowCdk}
+          t={t}
+        />
+      ) : (
+        <p className="text-[11px] text-ink-ghost">
+          {t("settings.update.loading", { defaultValue: "正在读取更新设置..." })}
+        </p>
+      )}
+
+      {notice?.tone === "error" ? (
+        <p className="text-[10px] text-red-400 leading-relaxed">{notice.text}</p>
+      ) : null}
+    </section>
+  );
+}
+
+function UpdatePanel({
+  initialSettings,
+  initialStatus,
+  mode,
+}: Required<Pick<UpdateSettingsSectionProps, "mode">> &
+  Pick<UpdateSettingsSectionProps, "initialSettings" | "initialStatus">) {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<UpdateSettings | null>(initialSettings ?? null);
   const [status, setStatus] = useState<UpdateState | null>(initialStatus ?? null);
@@ -70,46 +252,8 @@ export function UpdateSettingsSection({
     latestChannelRef.current = settings?.channel ?? status?.channel ?? latestChannelRef.current;
   }, [settings?.channel, status?.channel]);
 
-  const sourceOptions = useMemo<Array<{ value: DownloadSourcePreference; label: string }>>(
-    () => [
-      {
-        value: "githubFirst",
-        label: t("settings.update.source.github", { defaultValue: "GitHub" }),
-      },
-      {
-        value: "mirrorChyanFirst",
-        label: t("settings.update.source.mirrorChyan", { defaultValue: "Mirror酱" }),
-      },
-    ],
-    [t],
-  );
-
-  const intervalOptions = useMemo<Array<{ value: IntervalOption; label: string }>>(() => {
-    const options = [
-      {
-        value: "24",
-        label: t("settings.update.interval.daily", { defaultValue: "每天" }),
-      },
-      {
-        value: "168",
-        label: t("settings.update.interval.weekly", { defaultValue: "每周" }),
-      },
-    ];
-    const current = settings?.checkIntervalHours;
-    if (current && current !== 24 && current !== 168) {
-      return [
-        {
-          value: String(current),
-          label: t("settings.update.interval.custom", {
-            hours: current,
-            defaultValue: "{{hours}} 小时",
-          }),
-        },
-        ...options,
-      ];
-    }
-    return options;
-  }, [settings?.checkIntervalHours, t]);
+  const sourceOptions = useSourceOptions(t);
+  const intervalOptions = useIntervalOptions(settings?.checkIntervalHours, t);
 
   useEffect(() => {
     if (initialSettings && initialStatus) return;
@@ -307,9 +451,6 @@ export function UpdateSettingsSection({
     });
   };
 
-  // Auto-save CDK with debounce when the user types a non-empty value.
-  // Flushes on unmount so the CDK is never lost when the user closes
-  // the settings panel before the debounce fires.
   const cdkSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cdkSavedValue = useRef("");
   const pendingCdkValue = useRef("");
@@ -336,7 +477,6 @@ export function UpdateSettingsSection({
     };
   }, [cdkInput, t]);
 
-  // Flush pending CDK value on unmount so no typed input is lost.
   useEffect(() => {
     return () => {
       const pending = pendingCdkValue.current;
@@ -346,9 +486,6 @@ export function UpdateSettingsSection({
     };
   }, []);
 
-  // When the settings panel opens and a CDK is already saved, fetch the
-  // plaintext from the keyring so the input is pre-filled (masked by the
-  // password field type) and fully editable.
   useEffect(() => {
     if (!settings?.hasMirrorChyanCdk) return;
     let cancelled = false;
@@ -535,141 +672,19 @@ export function UpdateSettingsSection({
               </div>
             ) : null}
 
-            <div className="space-y-2">
-              <UpdateToggleRow
-                label={t("settings.update.autoCheck", {
-                  defaultValue: "自动检查更新",
-                })}
-                checked={settings.autoCheck}
-                disabled={controlsDisabled}
-                onChange={(checked) => updateSettings("autoCheck", checked)}
-              />
-              <UpdateToggleRow
-                label={t("settings.update.autoDownload", {
-                  defaultValue: "有新版本时自动下载",
-                })}
-                checked={settings.autoDownload}
-                disabled={controlsDisabled}
-                onChange={(checked) => updateSettings("autoDownload", checked)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-[11px] font-body text-ink-faint">
-                {t("settings.update.interval.label", {
-                  defaultValue: "检查频率",
-                })}
-              </label>
-              <SlidingButtonGroup
-                options={intervalOptions}
-                value={intervalValue}
-                onChange={handleIntervalChange}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-[11px] font-body text-ink-faint">
-                {t("settings.update.source.label", { defaultValue: "下载源" })}
-              </label>
-              <SlidingButtonGroup
-                options={sourceOptions}
-                value={settings.downloadSourcePreference}
-                onChange={(value) => updateSettings("downloadSourcePreference", value)}
-                className="grid grid-cols-2"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-[11px] font-body text-ink-faint">
-                {t("settings.update.mirrorChyan.title", {
-                  defaultValue: "Mirror酱",
-                })}
-              </label>
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <input
-                    type={showCdk && cdkInput ? "text" : "password"}
-                    value={cdkInput}
-                    onChange={(event) => setCdkInput(event.target.value)}
-                    placeholder={t("settings.update.mirrorChyan.placeholder", {
-                      defaultValue: "点击输入文本",
-                    })}
-                    className="min-w-0 w-full h-8 px-2.5 pr-8 rounded-lg bg-paper-warm/70 border border-paper-deep/40 text-[12px] font-mono text-ink-soft outline-none focus:border-bamboo/40 focus:bg-paper-warm/90 transition-colors"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCdk((prev) => !prev)}
-                  disabled={!cdkInput}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-paper-deep/45 text-ink-ghost hover:text-ink-faint hover:bg-paper-warm disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0"
-                  title={
-                    showCdk
-                      ? t("settings.update.mirrorChyan.hideCdk", {
-                          defaultValue: "隐藏 CDK",
-                        })
-                      : t("settings.update.mirrorChyan.showCdk", {
-                          defaultValue: "显示 CDK",
-                        })
-                  }
-                >
-                  {showCdk ? (
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </svg>
-                  ) : (
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              <p className="text-[10px] text-ink-ghost leading-relaxed">
-                {t("settings.update.mirrorChyan.noCdkHint", {
-                  defaultValue: "没有或者忘记 CDK？",
-                })}{" "}
-                <button
-                  type="button"
-                  onClick={() => void openUrl("https://mirrorchyan.com")}
-                  className="inline-flex items-center gap-0.5 text-ink-faint hover:text-bamboo cursor-pointer transition-colors"
-                >
-                  Mirror酱
-                  <svg
-                    className="w-[1em] h-[1em]"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M6 3h7v7M13 3L3 13" />
-                  </svg>
-                </button>
-                {t("settings.update.mirrorChyan.noCdkHintSuffix", {
-                  defaultValue: " 官网即刻获取。",
-                })}
-              </p>
-            </div>
+            <UpdateSettingsControls
+              settings={settings}
+              intervalOptions={intervalOptions}
+              sourceOptions={sourceOptions}
+              cdkInput={cdkInput}
+              showCdk={showCdk}
+              controlsDisabled={controlsDisabled}
+              onSettingsChange={updateSettings}
+              onIntervalChange={handleIntervalChange}
+              onCdkInputChange={setCdkInput}
+              onShowCdkChange={setShowCdk}
+              t={t}
+            />
           </>
         ) : (
           <>
@@ -691,6 +706,217 @@ export function UpdateSettingsSection({
         )
       ) : null}
     </section>
+  );
+}
+
+function useSourceOptions(t: ReturnType<typeof useTranslation>["t"]) {
+  return useMemo<Array<{ value: DownloadSourcePreference; label: string }>>(
+    () => [
+      {
+        value: "githubFirst",
+        label: t("settings.update.source.github", { defaultValue: "GitHub" }),
+      },
+      {
+        value: "mirrorChyanFirst",
+        label: t("settings.update.source.mirrorChyan", { defaultValue: "Mirror酱" }),
+      },
+    ],
+    [t],
+  );
+}
+
+function useIntervalOptions(
+  current: number | undefined,
+  t: ReturnType<typeof useTranslation>["t"],
+) {
+  return useMemo<Array<{ value: IntervalOption; label: string }>>(() => {
+    const options = [
+      {
+        value: "24",
+        label: t("settings.update.interval.daily", { defaultValue: "每天" }),
+      },
+      {
+        value: "168",
+        label: t("settings.update.interval.weekly", { defaultValue: "每周" }),
+      },
+    ];
+    if (current && current !== 24 && current !== 168) {
+      return [
+        {
+          value: String(current),
+          label: t("settings.update.interval.custom", {
+            hours: current,
+            defaultValue: "{{hours}} 小时",
+          }),
+        },
+        ...options,
+      ];
+    }
+    return options;
+  }, [current, t]);
+}
+
+function UpdateSettingsControls({
+  settings,
+  intervalOptions,
+  sourceOptions,
+  cdkInput,
+  showCdk,
+  controlsDisabled,
+  onSettingsChange,
+  onIntervalChange,
+  onCdkInputChange,
+  onShowCdkChange,
+  t,
+}: UpdateSettingsControlsProps) {
+  const intervalValue: IntervalOption = String(settings.checkIntervalHours ?? 24);
+
+  return (
+    <>
+      <div className="space-y-2">
+        <UpdateToggleRow
+          label={t("settings.update.autoCheck", {
+            defaultValue: "自动检查更新",
+          })}
+          checked={settings.autoCheck}
+          disabled={controlsDisabled}
+          onChange={(checked) => onSettingsChange("autoCheck", checked)}
+        />
+        <UpdateToggleRow
+          label={t("settings.update.autoDownload", {
+            defaultValue: "有新版本时自动下载",
+          })}
+          checked={settings.autoDownload}
+          disabled={controlsDisabled}
+          onChange={(checked) => onSettingsChange("autoDownload", checked)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-[11px] font-body text-ink-faint">
+          {t("settings.update.interval.label", {
+            defaultValue: "检查频率",
+          })}
+        </label>
+        <SlidingButtonGroup
+          options={intervalOptions}
+          value={intervalValue}
+          onChange={onIntervalChange}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-[11px] font-body text-ink-faint">
+          {t("settings.update.source.label", { defaultValue: "下载源" })}
+        </label>
+        <SlidingButtonGroup
+          options={sourceOptions}
+          value={settings.downloadSourcePreference}
+          onChange={(value) => onSettingsChange("downloadSourcePreference", value)}
+          className="grid grid-cols-2"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-[11px] font-body text-ink-faint">
+          {t("settings.update.mirrorChyan.title", {
+            defaultValue: "Mirror酱",
+          })}
+        </label>
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <input
+              type={showCdk && cdkInput ? "text" : "password"}
+              value={cdkInput}
+              onChange={(event) => onCdkInputChange(event.target.value)}
+              placeholder={t("settings.update.mirrorChyan.placeholder", {
+                defaultValue: "点击输入文本",
+              })}
+              className="min-w-0 w-full h-8 px-2.5 pr-8 rounded-lg bg-paper-warm/70 border border-paper-deep/40 text-[12px] font-mono text-ink-soft outline-none focus:border-bamboo/40 focus:bg-paper-warm/90 transition-colors"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => onShowCdkChange(!showCdk)}
+            disabled={!cdkInput}
+            className="h-8 w-8 flex items-center justify-center rounded-lg border border-paper-deep/45 text-ink-ghost hover:text-ink-faint hover:bg-paper-warm disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0"
+            title={
+              showCdk
+                ? t("settings.update.mirrorChyan.hideCdk", {
+                    defaultValue: "隐藏 CDK",
+                  })
+                : t("settings.update.mirrorChyan.showCdk", {
+                    defaultValue: "显示 CDK",
+                  })
+            }
+          >
+            {showCdk ? <EyeOffIcon /> : <EyeIcon />}
+          </button>
+        </div>
+        <p className="text-[10px] text-ink-ghost leading-relaxed">
+          {t("settings.update.mirrorChyan.noCdkHint", {
+            defaultValue: "没有或者忘记 CDK？",
+          })}{" "}
+          <button
+            type="button"
+            onClick={() => void openUrl("https://mirrorchyan.com")}
+            className="inline-flex items-center gap-0.5 text-ink-faint hover:text-bamboo cursor-pointer transition-colors"
+          >
+            Mirror酱
+            <svg
+              className="w-[1em] h-[1em]"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 3h7v7M13 3L3 13" />
+            </svg>
+          </button>
+          {t("settings.update.mirrorChyan.noCdkHintSuffix", {
+            defaultValue: " 官网即刻获取。",
+          })}
+        </p>
+      </div>
+    </>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
   );
 }
 
