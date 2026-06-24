@@ -10,48 +10,6 @@ import type {
   UpdateState,
 } from "./types";
 
-let frontendErrorLoggingInstalled = false;
-
-function stringifyForLog(value: unknown): string {
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-function installFrontendErrorLogging(): void {
-  if (!import.meta.env.DEV || frontendErrorLoggingInstalled || typeof window === "undefined") {
-    return;
-  }
-  frontendErrorLoggingInstalled = true;
-
-  window.addEventListener("error", (event) => {
-    console.error("[update:frontend:error]", {
-      message: event.message,
-      filename: event.filename,
-      lineno: event.lineno,
-      colno: event.colno,
-      error: event.error,
-    });
-  });
-
-  window.addEventListener("unhandledrejection", (event) => {
-    console.error("[update:frontend:unhandledrejection]", event.reason);
-  });
-}
-
-function logUpdateSettings(label: string, value?: unknown): void {
-  if (!import.meta.env.DEV) return;
-  if (value === undefined) {
-    console.log(`[update:settings:${label}]`);
-    return;
-  }
-  console.log(`[update:settings:${label}]`, value, stringifyForLog(value));
-}
-
-installFrontendErrorLogging();
-
 const DEFAULT_UPDATE_SETTINGS: UpdateSettings = {
   autoCheck: true,
   autoDownload: false,
@@ -73,7 +31,9 @@ function isSourcePreference(value: unknown): value is "mirrorChyanFirst" | "gith
   return value === "mirrorChyanFirst" || value === "githubFirst";
 }
 
-function normalizeUpdateSettings(value: Partial<UpdateSettings> | null | undefined): UpdateSettings {
+function normalizeUpdateSettings(
+  value: Partial<UpdateSettings> | null | undefined,
+): UpdateSettings {
   const interval = Number(value?.checkIntervalHours ?? DEFAULT_UPDATE_SETTINGS.checkIntervalHours);
 
   return {
@@ -131,15 +91,7 @@ export function getUpdateStatus(): Promise<UpdateState> {
 }
 
 export async function getUpdateSettings(): Promise<UpdateSettings> {
-  logUpdateSettings("get:start");
-  try {
-    const settings = normalizeUpdateSettings(await invoke<UpdateSettings>("update_settings_get"));
-    logUpdateSettings("get:success", settings);
-    return settings;
-  } catch (error) {
-    console.error("[update:settings:get:error]", error);
-    throw error;
-  }
+  return normalizeUpdateSettings(await invoke<UpdateSettings>("update_settings_get"));
 }
 
 export async function saveUpdateSettings(settings: UpdateSettings): Promise<UpdateSettings> {
@@ -155,20 +107,9 @@ export async function saveUpdateSettings(settings: UpdateSettings): Promise<Upda
     lastAutoCheckAt: normalizedSettings.lastAutoCheckAt ?? null,
   };
 
-  logUpdateSettings("save:input", settings);
-  logUpdateSettings("save:payload", payload);
-
-  try {
-    const saved = normalizeUpdateSettings(
-      await invoke<UpdateSettings>("update_settings_save", { settings: payload }),
-    );
-    logUpdateSettings("save:success", saved);
-    logUpdateSettings("save:return-input-state", settings);
-    return settings;
-  } catch (error) {
-    console.error("[update:settings:save:error]", error);
-    throw error;
-  }
+  return normalizeUpdateSettings(
+    await invoke<UpdateSettings>("update_settings_save", { settings: payload }),
+  );
 }
 
 export function setMirrorChyanCdk(cdk: string): Promise<void> {
