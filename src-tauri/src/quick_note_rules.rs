@@ -23,8 +23,6 @@ static SHORTCUT_GUARD_STARTED: AtomicBool = AtomicBool::new(false);
 #[serde(rename_all = "camelCase")]
 pub struct QuickNoteRules {
     #[serde(default)]
-    pub enabled: bool,
-    #[serde(default)]
     pub suppress_quick_note_in_fullscreen: bool,
     #[serde(default)]
     pub app_blacklist: Vec<String>,
@@ -44,7 +42,6 @@ pub struct ForegroundAppInfo {
 impl Default for QuickNoteRules {
     fn default() -> Self {
         Self {
-            enabled: false,
             suppress_quick_note_in_fullscreen: false,
             app_blacklist: Vec::new(),
             app_whitelist: Vec::new(),
@@ -55,7 +52,6 @@ impl Default for QuickNoteRules {
 impl QuickNoteRules {
     fn from_config(config: &AppConfig) -> Self {
         normalize_rules(Self {
-            enabled: config.quick_note_rules_enabled,
             suppress_quick_note_in_fullscreen: config.suppress_quick_note_in_fullscreen,
             app_blacklist: config.quick_note_app_blacklist.clone(),
             app_whitelist: config.quick_note_app_whitelist.clone(),
@@ -64,7 +60,6 @@ impl QuickNoteRules {
 
     fn apply_to_config(&self, config: &mut AppConfig) {
         let rules = normalize_rules(self.clone());
-        config.quick_note_rules_enabled = rules.enabled;
         config.suppress_quick_note_in_fullscreen = rules.suppress_quick_note_in_fullscreen;
         config.quick_note_app_blacklist = rules.app_blacklist;
         config.quick_note_app_whitelist = rules.app_whitelist;
@@ -97,10 +92,6 @@ pub fn should_suppress_quick_note() -> bool {
 }
 
 fn should_suppress_quick_note_for_rules(rules: &QuickNoteRules) -> bool {
-    if !rules.enabled {
-        return false;
-    }
-
     let Some(app) = platform::foreground_app_info() else {
         return false;
     };
@@ -526,13 +517,11 @@ mod tests {
     #[test]
     fn removes_duplicates_and_blacklist_wins() {
         let rules = normalize_rules(QuickNoteRules {
-            enabled: true,
             suppress_quick_note_in_fullscreen: true,
             app_blacklist: vec!["Game.exe".into(), "game.exe".into()],
             app_whitelist: vec!["game.exe".into(), "notes.exe".into()],
         });
 
-        assert!(rules.enabled);
         assert_eq!(rules.app_blacklist, vec!["game.exe"]);
         assert_eq!(rules.app_whitelist, vec!["notes.exe"]);
     }
