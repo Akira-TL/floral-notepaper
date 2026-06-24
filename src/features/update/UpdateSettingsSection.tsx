@@ -78,7 +78,9 @@ export function UpdateSettingsSection({
       },
       {
         value: "mirrorChyanFirst",
-        label: t("settings.update.source.mirrorChyan", { defaultValue: "Mirror酱" }),
+        label: t("settings.update.source.mirrorChyan", {
+          defaultValue: "Mirror酱",
+        }),
       },
     ],
     [t],
@@ -867,31 +869,29 @@ interface UpdateToggleRowProps {
 
 function UpdateToggleRow({ label, checked, disabled = false, onChange }: UpdateToggleRowProps) {
   return (
-    <label
-      className={`flex items-center justify-between h-9 rounded-lg px-2.5 bg-paper-warm/45 border border-paper-deep/25 ${
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`flex w-full items-center justify-between h-9 rounded-lg px-2.5 bg-paper-warm/45 border border-paper-deep/25 text-left ${
         disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
       }`}
     >
       <span className="text-[12px] text-ink-soft">{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.checked)}
-        className="sr-only"
-      />
-      <div
+      <span
         className={`relative w-8 h-[18px] rounded-full transition-colors duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           checked ? "bg-bamboo" : "bg-paper-deep/50"
         }`}
       >
-        <div
+        <span
           className={`absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)] transition-transform duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             checked ? "translate-x-[14px]" : "translate-x-0"
           }`}
         />
-      </div>
-    </label>
+      </span>
+    </button>
   );
 }
 
@@ -900,7 +900,9 @@ function getSourceLabel(
   t: ReturnType<typeof useTranslation>["t"],
 ) {
   if (source === "mirrorChyan") {
-    return t("settings.update.source.mirrorChyan", { defaultValue: "MirrorChyan" });
+    return t("settings.update.source.mirrorChyan", {
+      defaultValue: "MirrorChyan",
+    });
   }
   if (source === "github") {
     return t("settings.update.source.github", { defaultValue: "GitHub" });
