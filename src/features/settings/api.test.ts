@@ -53,7 +53,8 @@ describe("settings api", () => {
       renderHtmlMarkdown: false,
       splitScrollSync: true,
       openAtCursor: true,
-      suppressQuickNoteInFullscreen: true,
+      quickNoteRulesEnabled: false,
+      suppressQuickNoteInFullscreen: false,
       quickNoteAppBlacklist: [],
       quickNoteAppWhitelist: [],
     };
@@ -90,6 +91,7 @@ describe("settings api", () => {
       renderHtmlMarkdown: false,
       splitScrollSync: true,
       openAtCursor: true,
+      quickNoteRulesEnabled: true,
       suppressQuickNoteInFullscreen: true,
       quickNoteAppBlacklist: ["cs2.exe"],
       quickNoteAppWhitelist: ["minecraft.exe"],
