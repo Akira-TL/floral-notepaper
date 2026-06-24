@@ -1,0 +1,14 @@
+/*
+ * Guard against the side-panel transition state getting stuck after a settings-only
+ * child updates. In that failure mode the SettingsPanel remains mounted in the DOM,
+ * but its immediate animated wrapper keeps Tailwind's opacity-0 / translate-x-4 /
+ * pointer-events-none classes, making the whole settings panel look blank.
+ *
+ * Limit the override to the animated wrapper whose direct child is the SettingsPanel
+ * aside. About/update panels and unmounted side panels are not affected.
+ */
+div:has(> aside[class*="w-[360px]"][class*="bg-cloud/92"][class*="border-l"]) {
+  opacity: 1 !important;
+  transform: translateX(0) !important;
+  pointer-events: auto !important;
+}
