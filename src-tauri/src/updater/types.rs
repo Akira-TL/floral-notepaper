@@ -243,3 +243,5 @@ pub struct UpdateDownloadProgress {
     pub bytes_per_second: u64,
     pub source: DownloadSourceUsed,
 }
+
+pub type UpdateDownloadProgressDto = UpdateDownloadProgress;
