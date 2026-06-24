@@ -1,6 +1,7 @@
 pub mod desktop;
 pub mod json_io;
 pub mod locales;
+pub mod quick_note_rules;
 pub mod services;
 pub mod updater;
 
@@ -182,6 +183,26 @@ fn images_clean_unused(note_id: String, content: String) -> Result<Vec<String>, 
 #[tauri::command]
 fn config_get() -> Result<AppConfig, AppError> {
     default_store()?.load_config()
+}
+
+#[tauri::command]
+fn quick_note_rules_get() -> Result<quick_note_rules::QuickNoteRules, AppError> {
+    quick_note_rules::load_rules()
+}
+
+#[tauri::command]
+fn quick_note_rules_save(
+    app: AppHandle,
+    rules: quick_note_rules::QuickNoteRules,
+) -> Result<quick_note_rules::QuickNoteRules, AppError> {
+    let saved = quick_note_rules::save_rules(rules)?;
+    let _ = app.emit("quick-note-rules-changed", &saved);
+    Ok(saved)
+}
+
+#[tauri::command]
+fn foreground_app_info_get() -> Result<Option<quick_note_rules::ForegroundAppInfo>, AppError> {
+    quick_note_rules::current_foreground_app_info()
 }
 
 #[tauri::command]
@@ -437,6 +458,7 @@ pub fn run() {
             app.manage(updater_state);
             updater::start_auto_check_scheduler(app.handle().clone());
             desktop::setup_desktop(app)?;
+            quick_note_rules::start_shortcut_guard(app.handle().clone());
             Ok(())
         })
         .on_window_event(desktop::handle_window_event)
@@ -462,6 +484,9 @@ pub fn run() {
             images_get_base_dir,
             images_clean_unused,
             config_get,
+            quick_note_rules_get,
+            quick_note_rules_save,
+            foreground_app_info_get,
             copy_background_image,
             config_save,
             config_migrate_data_dir,
