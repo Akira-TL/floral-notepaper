@@ -48,7 +48,18 @@ export function getUpdateSettings(): Promise<UpdateSettings> {
 }
 
 export function saveUpdateSettings(settings: UpdateSettings): Promise<UpdateSettings> {
-  return invoke("update_settings_save", { settings });
+  return invoke("update_settings_save", {
+    settings: {
+      autoCheck: Boolean(settings.autoCheck),
+      autoDownload: Boolean(settings.autoDownload),
+      checkIntervalHours: Number(settings.checkIntervalHours),
+      checkSourcePreference: settings.checkSourcePreference,
+      downloadSourcePreference: settings.downloadSourcePreference,
+      channel: settings.channel,
+      allowPrerelease: Boolean(settings.allowPrerelease),
+      lastAutoCheckAt: settings.lastAutoCheckAt ?? null,
+    },
+  });
 }
 
 export function setMirrorChyanCdk(cdk: string): Promise<void> {
