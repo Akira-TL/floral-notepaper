@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   DownloadSourceUsed,
+  UpdateChannel,
   UpdateCheckResult,
   UpdateDownloadResult,
   UpdateInstallPrepareReportStatus,
@@ -51,6 +52,50 @@ function logUpdateSettings(label: string, value?: unknown): void {
 
 installFrontendErrorLogging();
 
+const DEFAULT_UPDATE_SETTINGS: UpdateSettings = {
+  autoCheck: true,
+  autoDownload: false,
+  checkIntervalHours: 24,
+  checkSourcePreference: "mirrorChyanFirst",
+  downloadSourcePreference: "mirrorChyanFirst",
+  channel: "stable",
+  allowPrerelease: false,
+  lastAutoCheckAt: null,
+  hasMirrorChyanCdk: false,
+  mirrorChyanCdkLength: null,
+};
+
+function isUpdateChannel(value: unknown): value is UpdateChannel {
+  return value === "stable" || value === "beta";
+}
+
+function isSourcePreference(value: unknown): value is "mirrorChyanFirst" | "githubFirst" {
+  return value === "mirrorChyanFirst" || value === "githubFirst";
+}
+
+function normalizeUpdateSettings(value: Partial<UpdateSettings> | null | undefined): UpdateSettings {
+  const interval = Number(value?.checkIntervalHours ?? DEFAULT_UPDATE_SETTINGS.checkIntervalHours);
+
+  return {
+    autoCheck: Boolean(value?.autoCheck ?? DEFAULT_UPDATE_SETTINGS.autoCheck),
+    autoDownload: Boolean(value?.autoDownload ?? DEFAULT_UPDATE_SETTINGS.autoDownload),
+    checkIntervalHours: Number.isFinite(interval) && interval > 0 ? interval : 24,
+    checkSourcePreference: isSourcePreference(value?.checkSourcePreference)
+      ? value.checkSourcePreference
+      : DEFAULT_UPDATE_SETTINGS.checkSourcePreference,
+    downloadSourcePreference: isSourcePreference(value?.downloadSourcePreference)
+      ? value.downloadSourcePreference
+      : isSourcePreference(value?.checkSourcePreference)
+        ? value.checkSourcePreference
+        : DEFAULT_UPDATE_SETTINGS.downloadSourcePreference,
+    channel: isUpdateChannel(value?.channel) ? value.channel : DEFAULT_UPDATE_SETTINGS.channel,
+    allowPrerelease: Boolean(value?.allowPrerelease ?? DEFAULT_UPDATE_SETTINGS.allowPrerelease),
+    lastAutoCheckAt: value?.lastAutoCheckAt ?? null,
+    hasMirrorChyanCdk: Boolean(value?.hasMirrorChyanCdk),
+    mirrorChyanCdkLength: value?.mirrorChyanCdkLength ?? null,
+  };
+}
+
 export function checkForUpdates(manual: boolean): Promise<UpdateCheckResult> {
   return invoke("update_check", { manual });
 }
@@ -88,7 +133,7 @@ export function getUpdateStatus(): Promise<UpdateState> {
 export async function getUpdateSettings(): Promise<UpdateSettings> {
   logUpdateSettings("get:start");
   try {
-    const settings = await invoke<UpdateSettings>("update_settings_get");
+    const settings = normalizeUpdateSettings(await invoke<UpdateSettings>("update_settings_get"));
     logUpdateSettings("get:success", settings);
     return settings;
   } catch (error) {
@@ -98,22 +143,25 @@ export async function getUpdateSettings(): Promise<UpdateSettings> {
 }
 
 export async function saveUpdateSettings(settings: UpdateSettings): Promise<UpdateSettings> {
+  const normalizedSettings = normalizeUpdateSettings(settings);
   const payload = {
-    autoCheck: Boolean(settings.autoCheck),
-    autoDownload: Boolean(settings.autoDownload),
-    checkIntervalHours: Number(settings.checkIntervalHours),
-    checkSourcePreference: settings.checkSourcePreference,
-    downloadSourcePreference: settings.downloadSourcePreference,
-    channel: settings.channel,
-    allowPrerelease: Boolean(settings.allowPrerelease),
-    lastAutoCheckAt: settings.lastAutoCheckAt ?? null,
+    autoCheck: normalizedSettings.autoCheck,
+    autoDownload: normalizedSettings.autoDownload,
+    checkIntervalHours: normalizedSettings.checkIntervalHours,
+    checkSourcePreference: normalizedSettings.checkSourcePreference,
+    downloadSourcePreference: normalizedSettings.downloadSourcePreference,
+    channel: normalizedSettings.channel,
+    allowPrerelease: normalizedSettings.allowPrerelease,
+    lastAutoCheckAt: normalizedSettings.lastAutoCheckAt ?? null,
   };
 
   logUpdateSettings("save:input", settings);
   logUpdateSettings("save:payload", payload);
 
   try {
-    const saved = await invoke<UpdateSettings>("update_settings_save", { settings: payload });
+    const saved = normalizeUpdateSettings(
+      await invoke<UpdateSettings>("update_settings_save", { settings: payload }),
+    );
     logUpdateSettings("save:success", saved);
     return saved;
   } catch (error) {
