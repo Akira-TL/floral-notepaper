@@ -39,6 +39,7 @@ export interface AppConfig {
   surfaceHeight?: number;
   toggleVisibilityShortcut: string;
   openAtCursor: boolean;
+  quickNoteRulesEnabled: boolean;
   suppressQuickNoteInFullscreen: boolean;
   quickNoteAppBlacklist: string[];
   quickNoteAppWhitelist: string[];
