@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { checkGlobalShortcut, chooseBackgroundImage } from "../features/settings/api";
-import { UpdateSettingsSection } from "../features/update/UpdateSettingsSection";
+import { UpdateSettingsOnlySection } from "../features/update/UpdateSettingsOnlySection";
 import type {
   AppConfig,
   BackgroundFit,
@@ -40,7 +40,9 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
     () => [
       {
         value: "system",
-        label: t("settings.tileColor.followTheme", { defaultValue: "跟随主题" }),
+        label: t("settings.tileColor.followTheme", {
+          defaultValue: "跟随主题",
+        }),
       },
       {
         value: "custom",
@@ -51,8 +53,14 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
   );
   const themeOptions = useMemo<Array<{ value: ThemeOption; label: string }>>(
     () => [
-      { value: "light", label: t("settings.theme.light", { defaultValue: "浅色" }) },
-      { value: "dark", label: t("settings.theme.dark", { defaultValue: "深色" }) },
+      {
+        value: "light",
+        label: t("settings.theme.light", { defaultValue: "浅色" }),
+      },
+      {
+        value: "dark",
+        label: t("settings.theme.dark", { defaultValue: "深色" }),
+      },
       {
         value: "system",
         label: t("settings.theme.system", { defaultValue: "跟随系统" }),
@@ -62,8 +70,14 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
   );
   const viewModes = useMemo<Array<{ value: ViewMode; label: string }>>(
     () => [
-      { value: "edit", label: t("settings.defaultView.edit", { defaultValue: "编辑" }) },
-      { value: "split", label: t("settings.defaultView.split", { defaultValue: "分栏" }) },
+      {
+        value: "edit",
+        label: t("settings.defaultView.edit", { defaultValue: "编辑" }),
+      },
+      {
+        value: "split",
+        label: t("settings.defaultView.split", { defaultValue: "分栏" }),
+      },
       {
         value: "preview",
         label: t("settings.defaultView.preview", { defaultValue: "预览" }),
@@ -73,9 +87,18 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
   );
   const backgroundFits = useMemo<Array<{ value: BackgroundFit; label: string }>>(
     () => [
-      { value: "cover", label: t("settings.background.fit.cover", { defaultValue: "填充" }) },
-      { value: "contain", label: t("settings.background.fit.contain", { defaultValue: "完整" }) },
-      { value: "repeat", label: t("settings.background.fit.repeat", { defaultValue: "平铺" }) },
+      {
+        value: "cover",
+        label: t("settings.background.fit.cover", { defaultValue: "填充" }),
+      },
+      {
+        value: "contain",
+        label: t("settings.background.fit.contain", { defaultValue: "完整" }),
+      },
+      {
+        value: "repeat",
+        label: t("settings.background.fit.repeat", { defaultValue: "平铺" }),
+      },
     ],
     [t],
   );
@@ -174,47 +197,65 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
             onChange={(checked) => setConfigValue("autostart", checked)}
           />
           <ToggleRow
-            label={t("settings.autoSave.note", { defaultValue: "自动保存笔记" })}
+            label={t("settings.autoSave.note", {
+              defaultValue: "自动保存笔记",
+            })}
             checked={config.noteAutoSave}
             onChange={(checked) => setConfigValue("noteAutoSave", checked)}
           />
           <ToggleRow
-            label={t("settings.autoSave.surface", { defaultValue: "小窗笔记自动保存" })}
+            label={t("settings.autoSave.surface", {
+              defaultValue: "小窗笔记自动保存",
+            })}
             checked={config.noteSurfaceAutoSave}
             onChange={(checked) => setConfigValue("noteSurfaceAutoSave", checked)}
           />
           <ToggleRow
-            label={t("settings.autoSave.externalFile", { defaultValue: "外部文件自动保存" })}
+            label={t("settings.autoSave.externalFile", {
+              defaultValue: "外部文件自动保存",
+            })}
             checked={config.externalFileAutoSave}
             onChange={(checked) => setConfigValue("externalFileAutoSave", checked)}
           />
           <ToggleRow
-            label={t("settings.rememberSurfaceSize", { defaultValue: "记住小窗尺寸" })}
+            label={t("settings.rememberSurfaceSize", {
+              defaultValue: "记住小窗尺寸",
+            })}
             checked={config.rememberSurfaceSize}
             onChange={(checked) => setConfigValue("rememberSurfaceSize", checked)}
           />
           <ToggleRow
-            label={t("settings.tileRenderMarkdown", { defaultValue: "磁贴渲染 Markdown" })}
+            label={t("settings.tileRenderMarkdown", {
+              defaultValue: "磁贴渲染 Markdown",
+            })}
             checked={config.tileRenderMarkdown}
             onChange={(checked) => setConfigValue("tileRenderMarkdown", checked)}
           />
           <ToggleRow
-            label={t("settings.tileDoubleClickToEdit", { defaultValue: "双击磁贴进入编辑" })}
+            label={t("settings.tileDoubleClickToEdit", {
+              defaultValue: "双击磁贴进入编辑",
+            })}
             checked={config.tileDoubleClickToEdit ?? false}
             onChange={(checked) => setConfigValue("tileDoubleClickToEdit", checked)}
           />
           <ToggleRow
-            label={t("settings.tileSaveReturnsToPin", { defaultValue: "保存后回到磁贴" })}
+            label={t("settings.tileSaveReturnsToPin", {
+              defaultValue: "保存后回到磁贴",
+            })}
             checked={config.tileSaveReturnsToPin ?? false}
             onChange={(checked) => setConfigValue("tileSaveReturnsToPin", checked)}
           />
           <ToggleRow
-            label={t("settings.renderHtmlMarkdown", { defaultValue: "允许 HTML 标签渲染" })}
+            label={t("settings.renderHtmlMarkdown", {
+              defaultValue: "允许 HTML 标签渲染",
+            })}
             checked={config.renderHtmlMarkdown}
             onChange={(checked) => setConfigValue("renderHtmlMarkdown", checked)}
           />
           <ToggleRow
-            label={t("settings.splitScrollSync", { defaultValue: "分栏同步滚动" })}
+            label={t("settings.splitScrollSync", {
+              defaultValue: "分栏同步滚动",
+            })}
             checked={config.splitScrollSync ?? true}
             onChange={(checked) => setConfigValue("splitScrollSync", checked)}
           />
@@ -223,18 +264,24 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
         {/* 快捷键功能设置区域，与上方常规设置分开 */}
         <section className="space-y-2">
           <ToggleRow
-            label={t("settings.tileCtrlClose", { defaultValue: "Ctrl+右键快速关闭磁贴" })}
+            label={t("settings.tileCtrlClose", {
+              defaultValue: "Ctrl+右键快速关闭磁贴",
+            })}
             checked={config.tileCtrlClose}
             onChange={(checked) => setConfigValue("tileCtrlClose", checked)}
           />
           <ToggleRow
-            label={t("settings.openAtCursor", { defaultValue: "快捷键打开时跟随鼠标位置" })}
+            label={t("settings.openAtCursor", {
+              defaultValue: "快捷键打开时跟随鼠标位置",
+            })}
             checked={config.openAtCursor ?? true}
             onChange={(checked) => setConfigValue("openAtCursor", checked)}
           />
           <div className="space-y-1.5">
             <label className="block text-[11px] font-body text-ink-faint/70 px-0.5">
-              {t("settings.quickNoteShortcut", { defaultValue: "快捷记录快捷键" })}
+              {t("settings.quickNoteShortcut", {
+                defaultValue: "快捷记录快捷键",
+              })}
             </label>
             <ShortcutRecorder
               value={config.globalShortcut}
@@ -243,7 +290,9 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
           </div>
           <div className="space-y-1.5">
             <label className="block text-[11px] font-body text-ink-faint/70 px-0.5">
-              {t("settings.visibilityShortcut", { defaultValue: "显示/隐藏窗口快捷键" })}
+              {t("settings.visibilityShortcut", {
+                defaultValue: "显示/隐藏窗口快捷键",
+              })}
             </label>
             <ShortcutRecorder
               value={config.toggleVisibilityShortcut}
@@ -457,7 +506,7 @@ export function SettingsPanel({ config, onChange, onMigrateDataDir, onClose }: S
           />
         </section>
 
-        <UpdateSettingsSection mode="settingsOnly" />
+        <UpdateSettingsOnlySection />
 
         <section className="pt-2 border-t border-paper-deep/25">
           <p className="text-[10px] leading-relaxed text-ink-ghost/75">
@@ -692,7 +741,9 @@ function ShortcutRecorder({ value, onChange }: ShortcutRecorderProps) {
                   })}
               </span>
               <span className="text-[10px] text-ink-faint shrink-0">
-                {t("settings.shortcut.cancelHint", { defaultValue: "Esc 取消" })}
+                {t("settings.shortcut.cancelHint", {
+                  defaultValue: "Esc 取消",
+                })}
               </span>
             </>
           ) : (
@@ -705,7 +756,9 @@ function ShortcutRecorder({ value, onChange }: ShortcutRecorderProps) {
                 {value || t("settings.shortcut.notSet", { defaultValue: "未设置" })}
               </span>
               <span className="text-[10px] text-ink-ghost shrink-0">
-                {t("settings.shortcut.clickToRecord", { defaultValue: "点击录制" })}
+                {t("settings.shortcut.clickToRecord", {
+                  defaultValue: "点击录制",
+                })}
               </span>
             </>
           )}
