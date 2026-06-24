@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ForegroundAppInfo } from "../settings/types";
 
 export interface QuickNoteRules {
+  enabled: boolean;
   suppressQuickNoteInFullscreen: boolean;
   appBlacklist: string[];
   appWhitelist: string[];
@@ -13,10 +13,6 @@ export function getQuickNoteRules(): Promise<QuickNoteRules> {
 
 export function saveQuickNoteRules(rules: QuickNoteRules): Promise<QuickNoteRules> {
   return invoke("quick_note_rules_save", { rules });
-}
-
-export function getForegroundAppInfo(): Promise<ForegroundAppInfo | null> {
-  return invoke("foreground_app_info_get");
 }
 
 export function addAppToWhitelist(rules: QuickNoteRules, exeName: string): QuickNoteRules {
