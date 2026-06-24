@@ -49,7 +49,10 @@ interface UpdateSettingsControlsProps {
   cdkInput: string;
   showCdk: boolean;
   controlsDisabled: boolean;
-  onSettingsChange: <Key extends keyof UpdateSettings>(key: Key, value: UpdateSettings[Key]) => void;
+  onSettingsChange: <Key extends keyof UpdateSettings>(
+    key: Key,
+    value: UpdateSettings[Key],
+  ) => void;
   onIntervalChange: (value: IntervalOption) => void;
   onCdkInputChange: (value: string) => void;
   onShowCdkChange: (value: boolean) => void;
@@ -67,7 +70,9 @@ export function UpdateSettingsSection({
     return <UpdateSettingsOnlySection initialSettings={initialSettings} />;
   }
 
-  return <UpdatePanel initialSettings={initialSettings} initialStatus={initialStatus} mode={mode} />;
+  return (
+    <UpdatePanel initialSettings={initialSettings} initialStatus={initialStatus} mode={mode} />
+  );
 }
 
 function UpdateSettingsOnlySection({ initialSettings }: { initialSettings?: UpdateSettings }) {
@@ -212,7 +217,9 @@ function UpdateSettingsOnlySection({ initialSettings }: { initialSettings?: Upda
         />
       ) : (
         <p className="text-[11px] text-ink-ghost">
-          {t("settings.update.loading", { defaultValue: "正在读取更新设置..." })}
+          {t("settings.update.loading", {
+            defaultValue: "正在读取更新设置...",
+          })}
         </p>
       )}
 
@@ -385,7 +392,6 @@ function UpdatePanel({
   const currentVersion = status?.currentVersion ?? "--";
   const showCheckControls = mode !== "settingsOnly";
   const showSettingsControls = mode !== "checkOnly";
-  const intervalValue: IntervalOption = String(settings?.checkIntervalHours ?? 24);
   const isDownloading = status?.status === "downloading";
   const isInstalling = status?.status === "installing";
   const controlsDisabled = busyAction !== null || isDownloading;
@@ -718,7 +724,9 @@ function useSourceOptions(t: ReturnType<typeof useTranslation>["t"]) {
       },
       {
         value: "mirrorChyanFirst",
-        label: t("settings.update.source.mirrorChyan", { defaultValue: "Mirror酱" }),
+        label: t("settings.update.source.mirrorChyan", {
+          defaultValue: "Mirror酱",
+        }),
       },
     ],
     [t],
@@ -1126,7 +1134,9 @@ function getSourceLabel(
   t: ReturnType<typeof useTranslation>["t"],
 ) {
   if (source === "mirrorChyan") {
-    return t("settings.update.source.mirrorChyan", { defaultValue: "MirrorChyan" });
+    return t("settings.update.source.mirrorChyan", {
+      defaultValue: "MirrorChyan",
+    });
   }
   if (source === "github") {
     return t("settings.update.source.github", { defaultValue: "GitHub" });

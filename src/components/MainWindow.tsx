@@ -134,7 +134,9 @@ function applyFormat(
 
   switch (action) {
     case "bold": {
-      const fallback = translate("main.formatSample.boldText", { defaultValue: "粗体文本" });
+      const fallback = translate("main.formatSample.boldText", {
+        defaultValue: "粗体文本",
+      });
       const wrapped = `**${selected || fallback}**`;
       result = before + wrapped + after;
       cursorStart = start + 2;
@@ -142,7 +144,9 @@ function applyFormat(
       break;
     }
     case "italic": {
-      const fallback = translate("main.formatSample.italicText", { defaultValue: "斜体文本" });
+      const fallback = translate("main.formatSample.italicText", {
+        defaultValue: "斜体文本",
+      });
       const wrapped = `*${selected || fallback}*`;
       result = before + wrapped + after;
       cursorStart = start + 1;
@@ -194,7 +198,9 @@ function applyFormat(
         cursorStart = start;
         cursorEnd = start + lines.length;
       } else {
-        const fallback = translate("main.formatSample.listItem", { defaultValue: "列表项" });
+        const fallback = translate("main.formatSample.listItem", {
+          defaultValue: "列表项",
+        });
         const item = `- ${selected || fallback}`;
         result = before + item + after;
         cursorStart = start + 2;
@@ -212,7 +218,9 @@ function applyFormat(
         cursorStart = start;
         cursorEnd = start + lines.length;
       } else {
-        const fallback = translate("main.formatSample.listItem", { defaultValue: "列表项" });
+        const fallback = translate("main.formatSample.listItem", {
+          defaultValue: "列表项",
+        });
         const item = `1. ${selected || fallback}`;
         result = before + item + after;
         cursorStart = start + 3;
@@ -227,7 +235,9 @@ function applyFormat(
         cursorStart = start + 4;
         cursorEnd = cursorStart + selected.length;
       } else {
-        const fallback = translate("main.formatSample.codeText", { defaultValue: "代码" });
+        const fallback = translate("main.formatSample.codeText", {
+          defaultValue: "代码",
+        });
         const wrapped = `\`${selected || fallback}\``;
         result = before + wrapped + after;
         cursorStart = start + 1;
@@ -245,7 +255,9 @@ function applyFormat(
         cursorStart = start;
         cursorEnd = start + lines.length;
       } else {
-        const fallback = translate("main.formatSample.quoteText", { defaultValue: "引用文本" });
+        const fallback = translate("main.formatSample.quoteText", {
+          defaultValue: "引用文本",
+        });
         const item = `> ${selected || fallback}`;
         result = before + item + after;
         cursorStart = start + 2;
@@ -341,6 +353,9 @@ export function MainWindow({
   const [settingsOpen, setSettingsOpen] = useState(initialSettingsOpen);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [mountedSidePanel, setMountedSidePanel] = useState<SidePanelMode | null>(
+    initialSettingsOpen && initialConfig ? "settings" : null,
+  );
+  const previousVisibleSidePanelRef = useRef<SidePanelMode | null>(
     initialSettingsOpen && initialConfig ? "settings" : null,
   );
   const [sidePanelContentVisible, setSidePanelContentVisible] = useState(
@@ -827,10 +842,18 @@ export function MainWindow({
     return () => window.clearTimeout(timer);
   }, [aboutUpdateReminder.showText]);
   useEffect(() => {
+    const previousVisibleSidePanel = previousVisibleSidePanelRef.current;
+    previousVisibleSidePanelRef.current = visibleSidePanel;
+
     if (visibleSidePanel) {
       setMountedSidePanel(visibleSidePanel);
-      setSidePanelContentVisible(false);
 
+      if (previousVisibleSidePanel === visibleSidePanel) {
+        setSidePanelContentVisible(true);
+        return;
+      }
+
+      setSidePanelContentVisible(false);
       const frame = window.requestAnimationFrame(() => {
         setSidePanelContentVisible(true);
       });
@@ -1225,7 +1248,11 @@ export function MainWindow({
   const handleNewNote = async () => {
     await saveCurrentNote();
     try {
-      const note = await createNote({ title: "", content: "", category: activeCategory });
+      const note = await createNote({
+        title: "",
+        content: "",
+        category: activeCategory,
+      });
       replaceNoteMetadata(note);
       applyNote(note);
     } catch (error) {
@@ -1572,7 +1599,11 @@ export function MainWindow({
   const ensureNoteSaved = useCallback(async (): Promise<string | null> => {
     if (selectedId) return selectedId;
     try {
-      const note = await createNote({ title, content, category: activeCategory });
+      const note = await createNote({
+        title,
+        content,
+        category: activeCategory,
+      });
       replaceNoteMetadata(note);
       applyNote(note);
       return note.id;
@@ -1937,7 +1968,9 @@ export function MainWindow({
             <button
               onClick={() => void handleOpenNotepad()}
               className="w-10 h-11 flex items-center justify-center text-ink-ghost hover:text-bamboo hover:bg-bamboo-mist/50 transition-all cursor-pointer"
-              title={t("main.window.quickNotepad", { defaultValue: "快捷便签" })}
+              title={t("main.window.quickNotepad", {
+                defaultValue: "快捷便签",
+              })}
             >
               <svg
                 width="14"
@@ -2121,14 +2154,18 @@ export function MainWindow({
                     type="text"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder={t("main.sidebar.searchPlaceholder", { defaultValue: "搜索笔记…" })}
+                    placeholder={t("main.sidebar.searchPlaceholder", {
+                      defaultValue: "搜索笔记…",
+                    })}
                     className="flex-1 text-[12px] font-body text-ink placeholder:text-ink-ghost/60 bg-transparent"
                   />
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery("")}
                       className="text-ink-ghost hover:text-ink-faint transition-colors cursor-pointer"
-                      title={t("main.sidebar.clearSearch", { defaultValue: "清空搜索" })}
+                      title={t("main.sidebar.clearSearch", {
+                        defaultValue: "清空搜索",
+                      })}
                     >
                       <svg
                         width="10"
@@ -2183,7 +2220,11 @@ export function MainWindow({
                     <path d="m7 10 5 5 5-5" />
                     <path d="M5 21h14" />
                   </svg>
-                  <span>{t("main.sidebar.importMarkdown", { defaultValue: "导入 Markdown" })}</span>
+                  <span>
+                    {t("main.sidebar.importMarkdown", {
+                      defaultValue: "导入 Markdown",
+                    })}
+                  </span>
                 </button>
               </div>
 
@@ -2241,7 +2282,9 @@ export function MainWindow({
                       }
                     }}
                     onBlur={() => void handleCreateCategory()}
-                    placeholder={t("main.category.placeholder", { defaultValue: "输入分类名…" })}
+                    placeholder={t("main.category.placeholder", {
+                      defaultValue: "输入分类名…",
+                    })}
                     className="w-full px-2.5 h-7 rounded-lg text-[12px] font-body text-ink bg-paper-warm/80 border border-paper-deep/40 focus:border-bamboo/30 placeholder:text-ink-ghost/60"
                   />
                 </div>
@@ -2252,7 +2295,9 @@ export function MainWindow({
                   {externalFiles.length > 0 && (
                     <>
                       <div className="px-3 py-1.5 text-[10px] text-ink-ghost/50 font-mono tracking-wider uppercase">
-                        {t("main.externalFiles.title", { defaultValue: "外部文件" })}
+                        {t("main.externalFiles.title", {
+                          defaultValue: "外部文件",
+                        })}
                       </div>
                       {externalFiles.map((file) => {
                         const isSelected = file.id === selectedId;
@@ -2401,7 +2446,9 @@ export function MainWindow({
                                 </div>
                                 <p className="text-[11px] text-ink-ghost leading-relaxed line-clamp-2 group-hover:text-ink-faint transition-colors">
                                   {note.preview ||
-                                    t("common.blankNote", { defaultValue: "空白笔记" })}
+                                    t("common.blankNote", {
+                                      defaultValue: "空白笔记",
+                                    })}
                                 </p>
                                 <div className="flex items-center gap-2 mt-1">
                                   <span className="text-[10px] text-ink-ghost/60 font-mono tabular-nums">
@@ -2532,7 +2579,9 @@ export function MainWindow({
                           >
                             {group.notes.length === 0 ? (
                               <div className="px-3 py-3 text-center text-[11px] text-ink-ghost/50">
-                                {t("main.category.emptyFolder", { defaultValue: "空文件夹" })}
+                                {t("main.category.emptyFolder", {
+                                  defaultValue: "空文件夹",
+                                })}
                               </div>
                             ) : (
                               group.notes.map((note) => {
@@ -2581,7 +2630,9 @@ export function MainWindow({
 
                                     <p className="text-[11px] text-ink-ghost leading-relaxed line-clamp-2 group-hover:text-ink-faint transition-colors">
                                       {note.preview ||
-                                        t("common.blankNote", { defaultValue: "空白笔记" })}
+                                        t("common.blankNote", {
+                                          defaultValue: "空白笔记",
+                                        })}
                                     </p>
 
                                     <div className="flex items-center gap-2 mt-1">
@@ -2609,8 +2660,12 @@ export function MainWindow({
                   {!isLoading && filteredNotes.length === 0 && externalFiles.length === 0 && (
                     <div className="px-3 py-8 text-center text-[12px] text-ink-ghost leading-relaxed">
                       {searchQuery
-                        ? t("main.search.noResults", { defaultValue: "没有匹配的笔记" })
-                        : t("main.search.empty", { defaultValue: "还没有笔记" })}
+                        ? t("main.search.noResults", {
+                            defaultValue: "没有匹配的笔记",
+                          })
+                        : t("main.search.empty", {
+                            defaultValue: "还没有笔记",
+                          })}
                     </div>
                   )}
                 </div>
@@ -2640,8 +2695,12 @@ export function MainWindow({
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-ink-ghost hover:text-ink-faint hover:bg-paper-warm transition-all cursor-pointer"
                   title={
                     sidebarCollapsed
-                      ? t("main.window.expandSidebar", { defaultValue: "展开侧栏" })
-                      : t("main.window.collapseSidebar", { defaultValue: "收起侧栏" })
+                      ? t("main.window.expandSidebar", {
+                          defaultValue: "展开侧栏",
+                        })
+                      : t("main.window.collapseSidebar", {
+                          defaultValue: "收起侧栏",
+                        })
                   }
                 >
                   <svg
@@ -2692,8 +2751,12 @@ export function MainWindow({
                   onClick={handleUndo}
                   disabled={!selectedId}
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-ink-ghost hover:text-ink-faint hover:bg-paper-warm transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                  title={t("main.editor.undo", { defaultValue: "撤销（Ctrl+Z）" })}
-                  aria-label={t("main.editor.undoLabel", { defaultValue: "撤销" })}
+                  title={t("main.editor.undo", {
+                    defaultValue: "撤销（Ctrl+Z）",
+                  })}
+                  aria-label={t("main.editor.undoLabel", {
+                    defaultValue: "撤销",
+                  })}
                 >
                   <svg
                     data-testid="main-editor-undo-icon"
@@ -2717,8 +2780,12 @@ export function MainWindow({
                   onClick={handleRedo}
                   disabled={!selectedId}
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-ink-ghost hover:text-ink-faint hover:bg-paper-warm transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                  title={t("main.editor.redo", { defaultValue: "重做（Ctrl+Y）" })}
-                  aria-label={t("main.editor.redoLabel", { defaultValue: "重做" })}
+                  title={t("main.editor.redo", {
+                    defaultValue: "重做（Ctrl+Y）",
+                  })}
+                  aria-label={t("main.editor.redoLabel", {
+                    defaultValue: "重做",
+                  })}
                 >
                   <svg
                     data-testid="main-editor-redo-icon"
@@ -2752,7 +2819,9 @@ export function MainWindow({
                     className={`flex items-center gap-1 ml-1 ${deleteExiting ? "animate-delete-confirm-exit" : "animate-delete-confirm"}`}
                   >
                     <span className="text-[11px] text-red-400 whitespace-nowrap">
-                      {t("main.editor.confirmDelete", { defaultValue: "确认删除？" })}
+                      {t("main.editor.confirmDelete", {
+                        defaultValue: "确认删除？",
+                      })}
                     </span>
                     <button
                       onMouseDown={(event) => event.preventDefault()}
@@ -2831,7 +2900,9 @@ export function MainWindow({
                     contentRef.current?.focus();
                   }
                 }}
-                placeholder={t("common.untitledNote", { defaultValue: "无标题笔记" })}
+                placeholder={t("common.untitledNote", {
+                  defaultValue: "无标题笔记",
+                })}
                 disabled={!selectedId}
                 className="w-full text-[20px] font-display font-bold text-ink placeholder:text-ink-ghost/50 tracking-wide disabled:opacity-60"
               />
@@ -2848,7 +2919,10 @@ export function MainWindow({
                 </span>
                 <span className="text-[10px] text-ink-ghost/40">·</span>
                 <span className="text-[10px] text-ink-ghost font-mono tabular-nums">
-                  {t("common.wordCount", { count: charCount, defaultValue: "{{count}} 字" })}
+                  {t("common.wordCount", {
+                    count: charCount,
+                    defaultValue: "{{count}} 字",
+                  })}
                 </span>
                 <span className="text-[10px] text-ink-ghost/40">·</span>
                 <span
@@ -2873,14 +2947,18 @@ export function MainWindow({
             >
               {!selectedId && !isLoading ? (
                 <div className="flex-1 flex items-center justify-center text-[13px] text-ink-ghost">
-                  {t("main.editor.emptyHint", { defaultValue: "选择或新建一篇笔记" })}
+                  {t("main.editor.emptyHint", {
+                    defaultValue: "选择或新建一篇笔记",
+                  })}
                 </div>
               ) : (
                 <>
                   {(viewMode === "edit" || viewMode === "split") && (
                     <div
                       className="flex flex-col min-h-0 shrink-0"
-                      style={{ width: viewMode === "split" ? `${splitRatio * 100}%` : "100%" }}
+                      style={{
+                        width: viewMode === "split" ? `${splitRatio * 100}%` : "100%",
+                      }}
                     >
                       <div className="flex items-center gap-0.5 px-4 pt-2 pb-1 shrink-0">
                         {toolbarButtons.map((button) => (
@@ -2959,7 +3037,9 @@ export function MainWindow({
                       {viewMode === "split" && (
                         <div className="px-4 pt-2.5 pb-1 shrink-0">
                           <span className="text-[10px] text-ink-ghost/60 font-mono tracking-widest uppercase">
-                            {t("main.editor.previewLabel", { defaultValue: "Preview" })}
+                            {t("main.editor.previewLabel", {
+                              defaultValue: "Preview",
+                            })}
                           </span>
                         </div>
                       )}
@@ -2993,7 +3073,9 @@ export function MainWindow({
                 </span>
                 <span className="text-[10px] text-ink-ghost/40">|</span>
                 <span className="text-[10px] text-ink-ghost font-mono">
-                  {t("main.statusBar.format", { defaultValue: "Markdown + LaTeX" })}
+                  {t("main.statusBar.format", {
+                    defaultValue: "Markdown + LaTeX",
+                  })}
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -3004,7 +3086,9 @@ export function MainWindow({
                       onClick={() => void handleCleanUnusedImages()}
                       className="text-[10px] text-ink-ghost hover:text-bamboo font-mono cursor-pointer transition-colors"
                     >
-                      {t("main.images.cleanUnused", { defaultValue: "清理未使用图片" })}
+                      {t("main.images.cleanUnused", {
+                        defaultValue: "清理未使用图片",
+                      })}
                     </button>
                     <span className="text-[10px] text-ink-ghost/40">|</span>
                   </>
@@ -3014,7 +3098,10 @@ export function MainWindow({
                 </span>
                 <span className="text-[10px] text-ink-ghost/40">|</span>
                 <span className="text-[10px] text-ink-ghost font-mono tabular-nums">
-                  {t("main.statusBar.byteSize", { size: byteSize, defaultValue: "{{size}} KB" })}
+                  {t("main.statusBar.byteSize", {
+                    size: byteSize,
+                    defaultValue: "{{size}} KB",
+                  })}
                 </span>
               </div>
             </div>
@@ -3148,7 +3235,9 @@ export function MainWindow({
                 }}
                 className="w-full text-left px-3 py-1.5 text-[12px] font-body text-red-400 hover:bg-danger-bg hover:text-red-500 transition-colors cursor-pointer outline-none"
               >
-                {t("main.category.confirmDeleteAction", { defaultValue: "确认删除" })}
+                {t("main.category.confirmDeleteAction", {
+                  defaultValue: "确认删除",
+                })}
               </button>
               <button
                 onMouseDown={(event) => event.preventDefault()}
